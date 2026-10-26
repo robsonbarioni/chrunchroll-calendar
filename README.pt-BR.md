@@ -24,6 +24,11 @@ Este projeto separa o que é estreia de verdade.
 
 ## Começando
 
+Há dois jeitos de rodar: **direto com o Node**, o mais simples para experimentar,
+ou **no Docker**, para deixar sempre no ar em segundo plano.
+
+### Com Node
+
 Você precisa de **Node.js 22.5 ou mais novo** ([baixar](https://nodejs.org)) e
 do **curl**, que já vem instalado no Windows 10+, macOS e Linux.
 
@@ -43,6 +48,45 @@ interface; da segunda vez em diante, `npm run web` já basta.
 > **Windows:** rode pelo PowerShell, Prompt de Comando ou Git Bash — tanto faz.
 > Os comandos são os mesmos.
 
+### Com Docker
+
+Só é preciso o [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+— nem Node nem curl na máquina; a imagem traz os dois.
+
+```bash
+git clone https://github.com/robsonbarioni/chrunchroll-calendar.git
+cd chrunchroll-calendar
+npm run docker
+```
+
+Abra **http://localhost:5180**. O `npm run docker` gera a imagem e (re)cria o
+container `anime-week`, que faz a coleta sozinho a cada 15 minutos e volta a
+subir sempre que o Docker inicia. Rode o mesmo comando depois de qualquer
+alteração para publicar a versão nova.
+
+```bash
+npm run docker        # gera a imagem e sobe (ou recria) o container
+npm run docker:logs   # acompanha o log do container
+npm run docker:stop   # para e remove o container (os dados ficam)
+```
+
+> Sem Node instalado? O `npm` vem com ele; sem ele, rode o equivalente com
+> `docker compose -f infra/docker-compose.yml up -d --build`.
+
+- **Porta:** o app escuta na 5173 dentro do container e é publicado na **5180**
+  do host, para não brigar com o `npm run web`.
+- **Dados:** o banco fica em `infra/data/anime-week.db`, fora da imagem, então
+  refazer o build nunca perde os favoritos. Para levar o que você já coletou com
+  o Node, copie `data/anime-week.db` para lá antes do primeiro `npm run docker`.
+- **Configuração:** opcional, em `infra/.env` (modelo em `infra/.env.example`).
+- **Acesso de fora da sua rede:** um túnel como o
+  [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+  pode apontar para `http://localhost:5180`.
+
+> **O app não tem login.** Quem chegar até ele pode favoritar, marcar episódios
+> como vistos e disparar coletas. Antes de expor, coloque uma regra de acesso na
+> frente (o Cloudflare Access, por exemplo).
+
 ---
 
 ## Usando
@@ -56,7 +100,7 @@ interface; da segunda vez em diante, `npm run web` já basta.
 | **★ Só favoritos** | Esconde tudo que você não acompanha |
 | **Previsões** | Liga/desliga a projeção dos dias que ainda não chegaram |
 | **Gerenciar séries** | Lista completa, com busca, para favoritar em lote |
-| **Bandeiras** | Alternam entre inglês e português |
+| **Idioma** | Menu com a bandeira: PT-BR ou EN-US |
 | **Atualizar** | Força uma busca agora, sem esperar o ciclo automático |
 
 Passando o mouse sobre um card aparece o **quadro daquele episódio**, numa
@@ -185,34 +229,6 @@ Opcional. Copie `.env.example` para `.env` e ajuste o que quiser:
 Seus dados ficam todos em `data/anime-week.db`, um arquivo SQLite comum. Para
 começar do zero, é só apagá-lo. Para levar os favoritos para outra máquina,
 copie o arquivo.
-
-### Rodando no Docker
-
-Para deixar o calendário sempre no ar — e acessível de fora por um túnel — há
-uma imagem pronta em `infra/`. Só é preciso o
-[Docker Desktop](https://www.docker.com/products/docker-desktop/):
-
-```bash
-npm run deploy
-```
-
-Isso gera a imagem e (re)cria o container `anime-week`, que volta sozinho junto
-com o Docker. Abra **http://localhost:5180**. Rode o mesmo comando depois de cada
-alteração para publicar a versão nova.
-
-- **Porta:** o app escuta na 5173 dentro do container e é publicado na **5180**
-  do host, para não brigar com o `npm run web`.
-- **Dados:** o banco fica em `infra/data/anime-week.db`, fora da imagem. Para
-  levar os favoritos que você já tem, copie `data/anime-week.db` para lá antes do
-  primeiro `deploy`.
-- **Configuração:** opcional, em `infra/.env` (modelo em `infra/.env.example`).
-- **URL externa:** aponte um hostname público do
-  [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
-  para `http://localhost:5180`.
-
-> **O app não tem login.** Quem tiver a URL pode favoritar, marcar episódios
-> como vistos e disparar coletas. Antes de publicar, coloque uma regra de acesso
-> na frente (o Cloudflare Access, por exemplo).
 
 ---
 

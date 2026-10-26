@@ -46,7 +46,12 @@
     <button id="refresh" class="btn primary"
             data-i18n="action.refresh" data-i18n-title="action.refreshTitle">Refresh</button>
 
-    <div id="langs" class="langs" role="group" data-i18n-label="lang.label"></div>
+    <div id="langs" class="langs">
+      <button id="langBtn" class="lang-btn" type="button"
+              aria-haspopup="listbox" aria-expanded="false" data-i18n-label="lang.label"></button>
+      <ul id="langMenu" class="lang-menu" role="listbox" tabindex="-1" hidden
+          data-i18n-label="lang.label"></ul>
+    </div>
   </div>
 </header>
 

@@ -30,9 +30,10 @@ const FLAG_BR = `
   <path d="M7.9 6.4a6.2 6.2 0 0 1 6.3 2.3" stroke="#fff" stroke-width=".85" fill="none"/>
 </svg>`;
 
+// A ordem aqui é a ordem das opções no seletor de idioma.
 export const LANGS = {
-  'en-US': { label: 'English', flag: FLAG_US },
-  'pt-BR': { label: 'Português', flag: FLAG_BR },
+  'pt-BR': { label: 'Português', short: 'PT-BR', flag: FLAG_BR },
+  'en-US': { label: 'English', short: 'EN-US', flag: FLAG_US },
 };
 
 export const DEFAULT_LANG = 'en-US';

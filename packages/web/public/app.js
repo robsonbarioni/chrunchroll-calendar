@@ -16,7 +16,7 @@ const el = {
   openFavs: $('#openFavs'), closeFavs: $('#closeFavs'),
   drawer: $('#drawer'), scrim: $('#scrim'),
   seriesList: $('#seriesList'), seriesSearch: $('#seriesSearch'), backfillBtn: $('#backfillBtn'),
-  langs: $('#langs'),
+  langs: $('#langs'), langBtn: $('#langBtn'), langMenu: $('#langMenu'),
 };
 
 const DAYS = 7;
@@ -605,29 +605,72 @@ el.showProj.addEventListener('change', () => {
   loadWeek();
 });
 
-// Idioma: detectado pelo navegador na primeira visita, trocável nas bandeiras.
-const flagButtons = new Map();
-for (const [code, { label, flag }] of Object.entries(LANGS)) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'flag';
-  btn.innerHTML = flag;
-  btn.title = label;
-  btn.setAttribute('aria-label', label);
-  btn.addEventListener('click', () => setLang(code));
-  el.langs.append(btn);
-  flagButtons.set(code, btn);
+// Idioma: detectado pelo navegador na primeira visita, trocável no seletor.
+// É um menu próprio, e não um <select>, porque o <option> não exibe SVG — e
+// as bandeiras precisam ser SVG (ver i18n.js).
+const langOptions = new Map();
+for (const [code, { label, short, flag }] of Object.entries(LANGS)) {
+  const li = document.createElement('li');
+  li.className = 'lang-opt';
+  li.setAttribute('role', 'option');
+  li.dataset.lang = code;
+  li.title = label;
+  li.innerHTML = `${flag}<span>${short}</span>`;
+  li.addEventListener('click', () => { setLang(code); openLangMenu(false); el.langBtn.focus(); });
+  el.langMenu.append(li);
+  langOptions.set(code, li);
 }
 
-function markCurrentFlag() {
-  for (const [code, btn] of flagButtons) {
-    btn.setAttribute('aria-pressed', String(code === getLang()));
+function renderLangButton() {
+  const { label, short, flag } = LANGS[getLang()];
+  el.langBtn.innerHTML = `${flag}<span>${short}</span><span class="caret" aria-hidden="true">▾</span>`;
+  el.langBtn.title = label;
+  for (const [code, li] of langOptions) {
+    li.setAttribute('aria-selected', String(code === getLang()));
   }
 }
-markCurrentFlag();
+renderLangButton();
+
+let langActive = null;   // opção destacada pelo teclado
+
+function highlightLang(code) {
+  langActive = code;
+  for (const [c, li] of langOptions) li.classList.toggle('active', c === code);
+}
+
+function openLangMenu(open) {
+  el.langMenu.hidden = !open;
+  el.langBtn.setAttribute('aria-expanded', String(open));
+  if (open) { highlightLang(getLang()); el.langMenu.focus(); }
+}
+
+el.langBtn.addEventListener('click', () => openLangMenu(el.langMenu.hidden));
+
+el.langMenu.addEventListener('keydown', (ev) => {
+  const codes = [...langOptions.keys()];
+  const i = codes.indexOf(langActive);
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    ev.preventDefault();
+    const step = ev.key === 'ArrowDown' ? 1 : -1;
+    highlightLang(codes[(i + step + codes.length) % codes.length]);
+  } else if (ev.key === 'Enter' || ev.key === ' ') {
+    ev.preventDefault();
+    if (langActive) setLang(langActive);
+    openLangMenu(false);
+    el.langBtn.focus();
+  } else if (ev.key === 'Escape' || ev.key === 'Tab') {
+    openLangMenu(false);
+    if (ev.key === 'Escape') el.langBtn.focus();
+  }
+});
+
+// Clique fora fecha o menu.
+document.addEventListener('click', (ev) => {
+  if (!el.langMenu.hidden && !el.langs.contains(ev.target)) openLangMenu(false);
+});
 
 onLangChange(() => {
-  markCurrentFlag();
+  renderLangButton();
   applyStatic();
   if (state.week) renderWeek(state.week);   // datas e textos dos cards
   renderFreshness();

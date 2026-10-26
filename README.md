@@ -25,6 +25,11 @@ separates the real premieres from the rest.
 
 ## Getting started
 
+There are two ways to run it: **directly with Node**, the simplest for trying it
+out, or **in Docker**, to keep it always on in the background.
+
+### With Node
+
 You need **Node.js 22.5 or newer** ([download](https://nodejs.org)) and **curl**,
 which already ships with Windows 10+, macOS and Linux.
 
@@ -44,6 +49,46 @@ up the interface; from then on, `npm run web` is enough.
 > **Windows:** PowerShell, Command Prompt or Git Bash all work. The commands are
 > the same.
 
+### With Docker
+
+You only need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+— no Node or curl on the machine; the image brings both.
+
+```bash
+git clone https://github.com/robsonbarioni/chrunchroll-calendar.git
+cd chrunchroll-calendar
+npm run docker
+```
+
+Open **http://localhost:5180**. `npm run docker` builds the image and
+(re)creates the `anime-week` container, which runs the collection on its own
+every 15 minutes and comes back up whenever Docker starts. Run the same command
+after any change to ship the new version.
+
+```bash
+npm run docker        # build the image and start (or recreate) the container
+npm run docker:logs   # follow the container's log
+npm run docker:stop   # stop and remove the container (the data stays)
+```
+
+> No Node installed? `npm` comes with it; without it, run the same thing with
+> `docker compose -f infra/docker-compose.yml up -d --build`.
+
+- **Port:** the app listens on 5173 inside the container and is published on
+  **5180** on the host, so it does not clash with `npm run web`.
+- **Data:** the database lives in `infra/data/anime-week.db`, outside the image,
+  so rebuilding never loses favorites. To carry over what you already collected
+  with Node, copy `data/anime-week.db` there before the first `npm run docker`.
+- **Configuration:** optional, in `infra/.env` (template in
+  `infra/.env.example`).
+- **Exposing it outside your network:** a tunnel such as
+  [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+  can point at `http://localhost:5180`.
+
+> **The app has no login.** Whoever reaches it can favorite, mark episodes as
+> watched and trigger collections. Before exposing it, put an access rule in
+> front of it (Cloudflare Access, for example).
+
 ---
 
 ## Using it
@@ -57,7 +102,7 @@ up the interface; from then on, `npm run web` is enough.
 | **★ Favorites only** | Hides everything you do not follow |
 | **Forecast** | Turns the projection of upcoming days on and off |
 | **Manage series** | Full list, searchable, for favoriting in bulk |
-| **Flags** | Switch between English and Portuguese |
+| **Language** | Dropdown with the flag: PT-BR or EN-US |
 | **Refresh** | Forces a check right now, without waiting for the cycle |
 
 Hovering a card brings up **that episode's still frame**, in a preview that
@@ -186,34 +231,6 @@ Optional. Copy `.env.example` to `.env` and adjust what you want:
 
 All your data lives in `data/anime-week.db`, an ordinary SQLite file. To start
 over, just delete it. To carry your favorites to another machine, copy it.
-
-### Running in Docker
-
-To keep the calendar always on — and reachable from outside through a tunnel —
-there is a ready image in `infra/`. You only need
-[Docker Desktop](https://www.docker.com/products/docker-desktop/):
-
-```bash
-npm run deploy
-```
-
-That builds the image and (re)creates the `anime-week` container, which restarts
-on its own with Docker. Open **http://localhost:5180**. Run the same command
-after every change to ship the new version.
-
-- **Port:** the app listens on 5173 inside the container and is published on
-  **5180** on the host, so it does not clash with `npm run web`.
-- **Data:** the database lives in `infra/data/anime-week.db`, outside the image.
-  To bring over the favorites you already have, copy `data/anime-week.db` there
-  before the first `deploy`.
-- **Configuration:** optional, in `infra/.env` (template in
-  `infra/.env.example`).
-- **External URL:** point a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
-  public hostname at `http://localhost:5180`.
-
-> **The app has no login.** Whoever has the URL can favorite, mark episodes as
-> watched and trigger collections. Before publishing it, put an access rule in
-> front of it (Cloudflare Access, for example).
 
 ---
 

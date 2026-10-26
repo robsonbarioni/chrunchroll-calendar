@@ -1,6 +1,6 @@
 # Nome de projeto explícito: sem ele o compose usa o nome da pasta (`infra`),
 # o mesmo de outros projetos com essa estrutura — e o `--remove-orphans` do
-# `npm run deploy` derrubaria os containers deles.
+# `npm run docker` derrubaria os containers deles.
 name: anime-week
 
 services:
