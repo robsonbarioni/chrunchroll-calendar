@@ -322,6 +322,42 @@ main { padding: 16px 20px 40px; }
 .rel.fav { background: #ffc53d0d; box-shadow: inset 2px 0 0 var(--star); }
 .rel.fav:hover { background: #ffc53d1a; }
 
+/*
+ * Projeção: não é um episódio lançado, é a expectativa de que a série repita
+ * o horário da semana passada. A arte perde cor e ganha contorno tracejado,
+ * para não se confundir com um lançamento de verdade nem de relance.
+ */
+.rel.proj .thumb {
+  filter: grayscale(.72) brightness(.62);
+  opacity: .85;
+}
+.rel.proj:hover .thumb { filter: grayscale(.4) brightness(.8); }
+
+.rel.proj .shot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1.5px dashed #5d6b85;
+  border-radius: 7px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.rel.proj .st { color: var(--text-dim); font-weight: 550; }
+.rel.proj .time { color: #9fb4d0; }
+
+.rel.proj .ep {
+  background: #4d9fff33;
+  color: #bcd8ff;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.rel .et.hint { font-style: italic; color: var(--text-faint); }
+
 /* Ações sobre a arte: favoritar e abrir a página da série. */
 .rel .tools {
   position: absolute;

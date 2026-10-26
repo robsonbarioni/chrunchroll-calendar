@@ -1,14 +1,16 @@
 # Anime Week
 
 Calendário semanal dos lançamentos de anime do Crunchyroll: um coletor que
-grava o histórico e uma interface que mostra os últimos 7 dias, com navegação
-para semanas anteriores e marcação de favoritos.
+grava o histórico e uma interface que mostra a semana de segunda a domingo,
+com navegação para semanas anteriores, previsão dos dias que ainda não
+chegaram e marcação de favoritos.
 
 ```
-┌─ ter 20 ─┬─ qua 21 ─┬─ qui 22 ─┬─ sex 23 ─┬─ sáb 24 ─┬─ dom 25 ─┬─ seg 26 ─┐
-│ 10:30 E3 │ 10:00 E3 │ 09:30 E4 │ 00:00 E8 │ 06:30 E4 │ 06:00 E4 │ 09:30 E4 │
-│ 11:30 E3 │ 10:00 E3 │ 13:05 E7 │ 12:00 E4 │ 10:00 E5 │ 06:00 E16│ 10:00 E5 │
-│    …     │    …     │          │    …     │    …     │    …     │          │
+┌─ seg 26 ─┬─ ter 27 ─┬─ qua 28 ─┬─ qui 29 ─┬─ sex 30 ─┬─ sáb 31 ─┬─ dom 01 ─┐
+│  hoje    │        previsto a partir da semana passada             │
+│ 09:30 E4 │ 10:30 ·· │ 10:00 ·· │ 09:30 ·· │ 00:00 ·· │ 06:30 ·· │ 06:00 ·· │
+│ 10:00 E5 │ 11:30 ·· │ 10:00 ·· │ 13:05 ·· │ 12:00 ·· │ 10:00 ·· │ 06:00 ·· │
+│ 11:30 E4 │    …     │    …     │          │    …     │    …     │    …     │
 └──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
 ```
 
@@ -74,6 +76,38 @@ node packages/collector/src/cli.js backfill --series GQWH0M19X
 node packages/collector/src/cli.js collect --pages 10
 ```
 
+## A semana e as previsões
+
+O calendário vai sempre de **segunda a domingo**, não é uma janela deslizante
+terminando hoje. Assim cada série cai sempre na mesma coluna, semana após
+semana, e dá para comparar de bate-pronto. A primeira abertura mostra a semana
+corrente, e as setas andam de sete em sete dias.
+
+Nos dias da semana corrente que ainda não chegaram, o calendário repete o que
+saiu sete dias antes, marcado como **previsão**: a arte fica em cinza, com
+contorno tracejado e o selo `PREVISTO` no lugar do número do episódio. O card
+leva à página da série, não a uma URL de episódio que ainda não existe.
+
+A previsão erra em dois casos conhecidos:
+
+- **Fim de temporada.** Uma série de 12 episódios some da grade e outra ocupa
+  o lugar. O Crunchyroll não expõe isso: `number_of_episodes` conta os
+  episódios já publicados, e `is_complete` vem `false` até para séries
+  encerradas — então não há como saber de antemão.
+- **Datas especiais.** Feriados e eventos no Japão suspendem a programação.
+
+Por isso a previsão nunca arrisca um número de episódio, e cada card mostra em
+quantas das últimas 4 semanas aquela série realmente saiu naquele dia —
+*"saiu em 4 das últimas 4 semanas"* é um padrão firme; *"só na semana passada"*
+pede desconfiança. O erro também se autocorrige: na semana seguinte a previsão
+já parte de uma semana sem aquele lançamento, e a série some sozinha.
+
+Dias que **já passaram** nunca recebem previsão, em nenhuma semana. Uma lacuna
+no passado é um fato — pode ter sido feriado ou fim de temporada — e preenchê-la
+seria inventar um lançamento que não houve.
+
+O botão **Previsões** desliga tudo isso e deixa só o que foi realmente lançado.
+
 ## Coleta automática
 
 O servidor web verifica o Crunchyroll sozinho a cada 15 minutos, **2 minutos
@@ -106,7 +140,7 @@ Para coletar sem manter a interface aberta, `npm run watch` usa a mesma grade.
 
 ### Na interface
 
-- **‹ › Hoje** ou **← →** navegam entre as semanas.
+- **‹ › Hoje** ou **← →** andam de semana em semana (segunda a domingo).
 - **☆** em qualquer card favorita a série.
 - **▦** abre a página da série no Crunchyroll (o card em si abre o episódio).
 - **★ Só favoritos** filtra o calendário para as séries que você acompanha.

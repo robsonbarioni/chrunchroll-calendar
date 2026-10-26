@@ -6,6 +6,7 @@ const el = {
   calendar: $('#calendar'), meta: $('#meta'), range: $('#range'), banner: $('#banner'),
   prev: $('#prev'), next: $('#next'), today: $('#today'),
   favOnly: $('#favOnly'), refresh: $('#refresh'),
+  showProj: $('#showProj'), projToggle: $('#projToggle'),
   freshness: $('#freshness'), freshnessText: $('#freshnessText'),
   openFavs: $('#openFavs'), closeFavs: $('#closeFavs'),
   drawer: $('#drawer'), scrim: $('#scrim'),
@@ -16,9 +17,11 @@ const DAYS = 7;
 const STATUS_POLL_MS = 30_000;   // ritmo de atualização do rótulo de frescor
 
 const state = {
-  endKey: null,          // último dia da janela exibida (YYYY-MM-DD)
+  startKey: null,        // segunda-feira da semana exibida (YYYY-MM-DD)
+  currentWeekStart: null,
   todayKey: null,
   favOnly: localStorage.getItem('favOnly') === '1',
+  showProj: localStorage.getItem('showProj') !== '0',
   week: null,
   status: null,
   showsToday: false,     // a semana visível contém o dia de hoje?
@@ -42,6 +45,12 @@ function addDays(key, delta) {
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + delta);
   return dt.toISOString().slice(0, 10);
+}
+
+/** YYYY-MM-DD -> DD/MM */
+function br(key) {
+  const [, m, d] = key.split('-');
+  return `${d}/${m}`;
 }
 
 function prettyRange(start, end) {
@@ -109,7 +118,10 @@ const preview = (() => {
     timer = setTimeout(() => {
       anchor = card;
       img.src = r.thumbnail;
-      cap.textContent = [r.episodeLabel, r.title].filter(Boolean).join(' · ');
+      cap.textContent = r.isProjection
+        ? `Previsão — último foi ${r.projectedFrom.episodeLabel} em ${br(r.projectedFrom.day)}. ` +
+          `Saiu neste dia em ${r.weeksSeen} das últimas ${r.weeksChecked} semanas.`
+        : [r.episodeLabel, r.title].filter(Boolean).join(' · ');
       box.hidden = false;
       place();
     }, 260);   // evita piscar ao varrer o mouse pela coluna
@@ -130,14 +142,16 @@ const preview = (() => {
 
 function releaseCard(r) {
   const a = document.createElement('a');
-  a.className = 'rel' + (r.isFavorite ? ' fav' : '');
+  a.className = 'rel' + (r.isFavorite ? ' fav' : '') + (r.isProjection ? ' proj' : '');
   a.href = r.url;
   a.target = '_blank';
   a.rel = 'noopener';
   // Sem `title`: o balão nativo brigaria com a prévia do episódio.
-  a.setAttribute('aria-label',
-    `${r.seriesTitle} — ${r.episodeLabel}` + (r.title ? `: ${r.title}` : '') +
-    (r.durationMin ? ` (${r.durationMin} min)` : ''));
+  a.setAttribute('aria-label', r.isProjection
+    ? `Previsão: ${r.seriesTitle} por volta das ${r.time}, com base em ` +
+      `${r.projectedFrom.episodeLabel} de ${br(r.projectedFrom.day)}`
+    : `${r.seriesTitle} — ${r.episodeLabel}` + (r.title ? `: ${r.title}` : '') +
+      (r.durationMin ? ` (${r.durationMin} min)` : ''));
   a.addEventListener('mouseenter', () => preview.show(a, r));
   a.addEventListener('mouseleave', () => preview.hide());
   a.addEventListener('click', () => preview.hide());
@@ -166,9 +180,11 @@ function releaseCard(r) {
   time.textContent = r.time ?? '--:--';
   const ep = document.createElement('span');
   ep.className = 'ep';
-  ep.textContent = r.episodeLabel;
+  // Numerar o episódio previsto seria chute: férias e especiais quebram a
+  // sequência. O card diz só que a série é esperada naquele horário.
+  ep.textContent = r.isProjection ? 'previsto' : r.episodeLabel;
   stamp.append(time, ep);
-  if (r.kind === 'special') {
+  if (r.kind === 'special' && !r.isProjection) {
     const b = document.createElement('span');
     b.className = 'badge-special';
     b.textContent = 'especial';
@@ -190,7 +206,14 @@ function releaseCard(r) {
   // com a mesma altura, para os dias alinharem na horizontal.
   const et = document.createElement('span');
   et.className = 'et';
-  et.textContent = (r.title && r.title !== String(r.episodeNumber)) ? r.title : '';
+  if (r.isProjection) {
+    et.classList.add('hint');
+    et.textContent = r.weeksSeen > 1
+      ? `saiu em ${r.weeksSeen} das últimas ${r.weeksChecked} semanas`
+      : `só na semana passada (${r.projectedFrom.episodeLabel})`;
+  } else {
+    et.textContent = (r.title && r.title !== String(r.episodeNumber)) ? r.title : '';
+  }
   info.append(et);
 
   a.append(info);
@@ -244,10 +267,11 @@ function renderWeek(week) {
 
     const head = document.createElement('header');
     head.className = 'day-head';
+    const count = day.releaseCount || (day.projectedCount ? `~${day.projectedCount}` : '');
     head.innerHTML =
       `<span class="wd">${day.weekday}</span>` +
       `<span class="dm">${day.dayOfMonth}</span>` +
-      `<span class="n">${day.releases.length || ''}</span>`;
+      `<span class="n">${count}</span>`;
     col.append(head);
 
     const body = document.createElement('div');
@@ -255,7 +279,7 @@ function renderWeek(week) {
     if (day.releases.length === 0) {
       const p = document.createElement('p');
       p.className = 'empty';
-      p.textContent = day.isFuture ? 'ainda não anunciado' : 'nada aqui';
+      p.textContent = day.isFuture ? 'sem previsão' : 'nada aqui';
       body.append(p);
     } else {
       for (const r of day.releases) body.append(releaseCard(r));
@@ -264,14 +288,15 @@ function renderWeek(week) {
     el.calendar.append(col);
   }
 
-  const { releases, favorites } = week.totals;
+  const { releases, favorites, projected } = week.totals;
   el.meta.textContent =
-    `${releases} lançamento${releases === 1 ? '' : 's'} nesta janela` +
+    `${releases} lançamento${releases === 1 ? '' : 's'} nesta semana` +
     (state.favOnly ? ' (só favoritos)' : ` · ${favorites} de séries favoritadas`) +
+    (projected ? ` · ${projected} previsto${projected === 1 ? '' : 's'} a partir da semana passada` : '') +
     ` · horários em ${week.timezone}`;
 
-  // No futuro não há o que mostrar além de hoje.
-  el.next.disabled = week.range.end >= state.todayKey;
+  // A semana atual é a última navegável: adiante só haveria previsão.
+  el.next.disabled = week.range.start >= week.range.currentWeekStart;
 
   // O indicador de frescor só faz sentido quando hoje está visível.
   state.showsToday = week.days.some((d) => d.isToday);
@@ -376,11 +401,17 @@ async function pollStatus({ reloadOnChange = true } = {}) {
 }
 
 async function loadWeek() {
-  const params = new URLSearchParams({ days: String(DAYS), favorites: state.favOnly ? '1' : '0' });
-  if (state.endKey) params.set('end', state.endKey);
+  const params = new URLSearchParams({
+    days: String(DAYS),
+    favorites: state.favOnly ? '1' : '0',
+    project: state.showProj ? '1' : '0',
+  });
+  if (state.startKey) params.set('start', state.startKey);
   try {
     const week = await api(`/api/week?${params}`);
-    if (!state.endKey) state.endKey = week.range.end;
+    // Sem semana escolhida, o servidor devolve a atual — adotamos a dele.
+    state.startKey = week.range.start;
+    state.currentWeekStart = week.range.currentWeekStart;
     renderWeek(week);
   } catch (err) {
     banner(`Não foi possível carregar a semana: ${err.message}`, 'err', 0);
@@ -494,14 +525,21 @@ el.backfillBtn.addEventListener('click', () => withBusy(el.backfillBtn, 'Preench
   }
 }));
 
-el.prev.addEventListener('click', () => { state.endKey = addDays(state.endKey, -DAYS); loadWeek(); });
-el.next.addEventListener('click', () => { state.endKey = addDays(state.endKey, DAYS); loadWeek(); });
-el.today.addEventListener('click', () => { state.endKey = state.todayKey; loadWeek(); });
+el.prev.addEventListener('click', () => { state.startKey = addDays(state.startKey, -DAYS); loadWeek(); });
+el.next.addEventListener('click', () => { state.startKey = addDays(state.startKey, DAYS); loadWeek(); });
+el.today.addEventListener('click', () => { state.startKey = state.currentWeekStart; loadWeek(); });
 
 el.favOnly.checked = state.favOnly;
 el.favOnly.addEventListener('change', () => {
   state.favOnly = el.favOnly.checked;
   localStorage.setItem('favOnly', state.favOnly ? '1' : '0');
+  loadWeek();
+});
+
+el.showProj.checked = state.showProj;
+el.showProj.addEventListener('change', () => {
+  state.showProj = el.showProj.checked;
+  localStorage.setItem('showProj', state.showProj ? '1' : '0');
   loadWeek();
 });
 

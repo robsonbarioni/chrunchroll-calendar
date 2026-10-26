@@ -123,7 +123,8 @@ async function main() {
       console.log(`Séries:       ${s.series} (${s.favorites} favoritas)`);
       console.log(`Período:      ${(s.oldest ?? '—').slice(0, 10)} → ${(s.newest ?? '—').slice(0, 10)}`);
       console.log(`Última coleta:${s.lastCollectedAt ? ' ' + s.lastCollectedAt : ' nunca'}`);
-      const win = dates.window(dates.todayKey(), 7);
+      // `window` é baseado no início: recua 6 dias para pegar os últimos 7.
+      const win = dates.window(dates.addDays(dates.todayKey(), -6), 7);
       const week = store.releasesBetween(win.utcFrom, win.utcTo);
       const byDay = new Map(win.keys.map((k) => [k, 0]));
       for (const r of week) {

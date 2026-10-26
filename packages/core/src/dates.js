@@ -42,21 +42,42 @@ export function addDays(key, delta) {
 }
 
 /**
- * Janela de `days` dias terminando em `endKey` (inclusive).
+ * Janela de `days` dias COMEÇANDO em `startKey` (inclusive).
  * Devolve as chaves em ordem crescente mais os limites UTC com folga,
  * para que a consulta no banco cubra qualquer deslocamento de fuso.
  */
-export function window(endKey, days = 7) {
+export function window(startKey, days = 7) {
   const keys = [];
-  for (let i = days - 1; i >= 0; i--) keys.push(addDays(endKey, -i));
+  for (let i = 0; i < days; i++) keys.push(addDays(startKey, i));
+  const last = keys[keys.length - 1];
   return {
     keys,
     startKey: keys[0],
-    endKey: keys[keys.length - 1],
+    endKey: last,
     // ±2 dias de folga cobrem qualquer offset de fuso (máx. real ~14h).
     utcFrom: `${addDays(keys[0], -2)}T00:00:00.000Z`,
-    utcTo: `${addDays(keys[keys.length - 1], 2)}T00:00:00.000Z`,
+    utcTo: `${addDays(last, 2)}T00:00:00.000Z`,
   };
+}
+
+/**
+ * Segunda-feira da semana que contém `key`.
+ *
+ * O calendário é ancorado na segunda em vez de ser uma janela deslizante
+ * terminando hoje: assim cada série cai sempre na mesma coluna, semana após
+ * semana, e dá para comparar de bate-pronto.
+ */
+export function weekStart(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dow = dt.getUTCDay();          // 0=domingo … 6=sábado
+  const back = (dow + 6) % 7;          // segunda=0, domingo=6
+  return addDays(key, -back);
+}
+
+/** Segunda-feira da semana atual. */
+export function currentWeekStart(tz = config.tz) {
+  return weekStart(todayKey(tz));
 }
 
 /** Nome do dia da semana, em pt-BR, a partir da chave YYYY-MM-DD. */
