@@ -53,6 +53,7 @@ interface; da segunda vez em diante, `npm run web` já basta.
 | **★ Só favoritos** | Esconde tudo que você não acompanha |
 | **Previsões** | Liga/desliga a projeção dos dias que ainda não chegaram |
 | **Gerenciar séries** | Lista completa, com busca, para favoritar em lote |
+| **Idioma** | Alterna entre inglês e português |
 | **Atualizar** | Força uma busca agora, sem esperar o ciclo automático |
 
 Passando o mouse sobre um card aparece o **quadro daquele episódio**. O card em
@@ -98,6 +99,22 @@ parte de uma semana sem aquele lançamento, e a série some da grade.
 Dias que **já passaram** nunca recebem previsão. Um dia vazio no passado é um
 fato, e preenchê-lo seria inventar um lançamento que não houve.
 
+### Idioma
+
+A interface está em **inglês** e **português**, e escolhe sozinha a partir do
+idioma do navegador — `pt-BR`, `pt-PT` ou qualquer variante de português abre em
+português; o resto abre em inglês. O seletor no canto superior direito troca a
+qualquer momento, e a escolha fica guardada.
+
+A tradução vai além do texto: o idioma define também o formato das datas e
+horas. Em inglês a semana aparece como `10/26 – 11/01` com horários em 12 h
+(`09:30 AM`) e episódios como `S1 E4`; em português vira `26/10 – 01/11`, 24 h
+(`09:30`) e `T1 E4`.
+
+> Os **títulos e descrições dos episódios** não são traduzidos pela interface:
+> vêm prontos do Crunchyroll no idioma de `CR_LOCALE` e ficam gravados assim no
+> banco. Para tê-los em inglês, use `CR_LOCALE=en-US` e colete de novo.
+
 ### Vendo semanas antigas
 
 As setas voltam no tempo até onde houver dados. A coleta normal enxerga cerca de
@@ -139,7 +156,7 @@ Opcional. Copie `.env.example` para `.env` e ajuste o que quiser:
 | Variável | Padrão | O que faz |
 | --- | --- | --- |
 | `TZ_DISPLAY` | `America/Sao_Paulo` | Fuso usado para agrupar por dia |
-| `CR_LOCALE` | `pt-BR` | Idioma dos títulos e descrições |
+| `CR_LOCALE` | `pt-BR` | Idioma dos títulos e descrições vindos do Crunchyroll |
 | `PORT` | `5173` | Porta da interface |
 | `DB_PATH` | `./data/anime-week.db` | Onde fica o banco |
 | `COLLECT_INTERVAL_MIN` | `15` | Intervalo entre verificações |
@@ -257,7 +274,7 @@ packages/
 ├── collector/    CLI de coleta e backfill
 └── web/          API HTTP + interface
     ├── src/      servidor (node:http, sem framework)
-    └── public/   calendário (HTML/CSS/JS puros)
+    └── public/   calendário (HTML/CSS/JS puros) + i18n.js
 ```
 
 O banco guarda, para cada lançamento, o suficiente para reabri-lo anos depois

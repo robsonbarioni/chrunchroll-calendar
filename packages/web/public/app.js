@@ -1,5 +1,10 @@
 // Interface do calendário semanal. Sem framework, sem build.
 
+import {
+  LANGS, t, getLang, setLang, onLangChange, applyStatic,
+  fmtTime, fmtWeekday, fmtDayMonth, fmtDate, fmtDateTime, fmtRelative,
+} from './i18n.js';
+
 const $ = (sel) => document.querySelector(sel);
 
 const el = {
@@ -11,6 +16,7 @@ const el = {
   openFavs: $('#openFavs'), closeFavs: $('#closeFavs'),
   drawer: $('#drawer'), scrim: $('#scrim'),
   seriesList: $('#seriesList'), seriesSearch: $('#seriesSearch'), backfillBtn: $('#backfillBtn'),
+  lang: $('#lang'),
 };
 
 const DAYS = 7;
@@ -20,6 +26,7 @@ const state = {
   startKey: null,        // segunda-feira da semana exibida (YYYY-MM-DD)
   currentWeekStart: null,
   todayKey: null,
+  timezone: null,
   favOnly: localStorage.getItem('favOnly') === '1',
   showProj: localStorage.getItem('showProj') !== '0',
   week: null,
@@ -47,18 +54,25 @@ function addDays(key, delta) {
   return dt.toISOString().slice(0, 10);
 }
 
-/** YYYY-MM-DD -> DD/MM */
-function br(key) {
-  const [, m, d] = key.split('-');
-  return `${d}/${m}`;
+/**
+ * Rótulo do episódio no idioma corrente ("T1 E4" / "S1 E4").
+ * O servidor grava um rótulo em português no banco; aqui ele é remontado a
+ * partir dos números, que são os mesmos em qualquer idioma.
+ */
+function epLabel(r) {
+  if (r.episodeNumber == null) return t('card.specialLabel');
+  return r.seasonNumber
+    ? t('card.episode', { season: r.seasonNumber, episode: r.episodeNumber })
+    : t('card.episodeNoSeason', { episode: r.episodeNumber });
+}
+
+/** Hora do lançamento, no fuso de exibição e no formato do idioma. */
+function localTime(r) {
+  return state.timezone ? fmtTime(r.premiereAt, state.timezone) : null;
 }
 
 function prettyRange(start, end) {
-  const f = (k) => {
-    const [, m, d] = k.split('-');
-    return `${d}/${m}`;
-  };
-  return `${f(start)} – ${f(end)} · ${end.slice(0, 4)}`;
+  return `${fmtDayMonth(start)} – ${fmtDayMonth(end)} · ${end.slice(0, 4)}`;
 }
 
 let bannerTimer;
@@ -119,9 +133,12 @@ const preview = (() => {
       anchor = card;
       img.src = r.thumbnail;
       cap.textContent = r.isProjection
-        ? `Previsão — último foi ${r.projectedFrom.episodeLabel} em ${br(r.projectedFrom.day)}. ` +
-          `Saiu neste dia em ${r.weeksSeen} das últimas ${r.weeksChecked} semanas.`
-        : [r.episodeLabel, r.title].filter(Boolean).join(' · ');
+        ? t('forecast.preview', {
+            episode: epLabel(r),
+            date: fmtDate(r.projectedFrom.day),
+            seen: r.weeksSeen, checked: r.weeksChecked,
+          })
+        : [epLabel(r), r.title].filter(Boolean).join(' · ');
       box.hidden = false;
       place();
     }, 260);   // evita piscar ao varrer o mouse pela coluna
@@ -148,10 +165,14 @@ function releaseCard(r) {
   a.rel = 'noopener';
   // Sem `title`: o balão nativo brigaria com a prévia do episódio.
   a.setAttribute('aria-label', r.isProjection
-    ? `Previsão: ${r.seriesTitle} por volta das ${r.time}, com base em ` +
-      `${r.projectedFrom.episodeLabel} de ${br(r.projectedFrom.day)}`
-    : `${r.seriesTitle} — ${r.episodeLabel}` + (r.title ? `: ${r.title}` : '') +
-      (r.durationMin ? ` (${r.durationMin} min)` : ''));
+    ? t('card.forecastAria', {
+        series: r.seriesTitle, time: localTime(r),
+        episode: epLabel(r), date: fmtDate(r.projectedFrom.day),
+      })
+    : (r.title
+        ? t('card.ariaWithTitle', { series: r.seriesTitle, episode: epLabel(r), title: r.title })
+        : t('card.aria', { series: r.seriesTitle, episode: epLabel(r) }))
+      + (r.durationMin ? t('card.ariaDuration', { minutes: r.durationMin }) : ''));
   a.addEventListener('mouseenter', () => preview.show(a, r));
   a.addEventListener('mouseleave', () => preview.hide());
   a.addEventListener('click', () => preview.hide());
@@ -177,17 +198,17 @@ function releaseCard(r) {
   stamp.className = 'stamp';
   const time = document.createElement('span');
   time.className = 'time';
-  time.textContent = r.time ?? '--:--';
+  time.textContent = localTime(r) ?? '--:--';
   const ep = document.createElement('span');
   ep.className = 'ep';
   // Numerar o episódio previsto seria chute: férias e especiais quebram a
   // sequência. O card diz só que a série é esperada naquele horário.
-  ep.textContent = r.isProjection ? 'previsto' : r.episodeLabel;
+  ep.textContent = r.isProjection ? t('card.forecast') : epLabel(r);
   stamp.append(time, ep);
   if (r.kind === 'special' && !r.isProjection) {
     const b = document.createElement('span');
     b.className = 'badge-special';
-    b.textContent = 'especial';
+    b.textContent = t('card.special');
     stamp.append(b);
   }
   shot.append(stamp);
@@ -209,8 +230,8 @@ function releaseCard(r) {
   if (r.isProjection) {
     et.classList.add('hint');
     et.textContent = r.weeksSeen > 1
-      ? `saiu em ${r.weeksSeen} das últimas ${r.weeksChecked} semanas`
-      : `só na semana passada (${r.projectedFrom.episodeLabel})`;
+      ? t('forecast.steady', { seen: r.weeksSeen, checked: r.weeksChecked })
+      : t('forecast.weak', { episode: epLabel(r) });
   } else {
     et.textContent = (r.title && r.title !== String(r.episodeNumber)) ? r.title : '';
   }
@@ -226,7 +247,7 @@ function releaseCard(r) {
   star.className = 'tool star' + (r.isFavorite ? ' on' : '');
   star.type = 'button';
   star.textContent = r.isFavorite ? '★' : '☆';
-  star.title = r.isFavorite ? 'Remover dos favoritos' : 'Favoritar esta série';
+  star.title = t(r.isFavorite ? 'card.unfavorite' : 'card.favorite');
   star.setAttribute('aria-label', star.title);
   star.addEventListener('click', (ev) => {
     ev.preventDefault();
@@ -241,9 +262,10 @@ function releaseCard(r) {
     series.href = r.seriesUrl;
     series.target = '_blank';
     series.rel = 'noopener';
-    series.title = `Abrir a página de ${r.seriesTitle} no Crunchyroll` +
-      (r.seasonTitle ? `\n(o site sempre abre na 1ª temporada; este episódio é de "${r.seasonTitle}")` : '');
-    series.setAttribute('aria-label', `Abrir a página da série ${r.seriesTitle}`);
+    series.title = t('card.openSeries', { title: r.seriesTitle }) +
+      (r.seasonTitle ? `
+${t('card.seasonNote', { season: r.seasonTitle })}` : '');
+    series.setAttribute('aria-label', t('card.openSeriesAria', { title: r.seriesTitle }));
     // Ícone de grade/catálogo.
     series.innerHTML =
       '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2h5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5Zm8 0h5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5Zm-8 7h5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5Zm8 0h5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5Z"/></svg>';
@@ -258,6 +280,7 @@ function releaseCard(r) {
 function renderWeek(week) {
   state.week = week;
   state.todayKey = week.range.today;
+  state.timezone = week.timezone;   // precisa estar pronto antes dos cards
   el.range.textContent = prettyRange(week.range.start, week.range.end);
   el.calendar.replaceChildren();
 
@@ -269,7 +292,7 @@ function renderWeek(week) {
     head.className = 'day-head';
     const count = day.releaseCount || (day.projectedCount ? `~${day.projectedCount}` : '');
     head.innerHTML =
-      `<span class="wd">${day.weekday}</span>` +
+      `<span class="wd">${fmtWeekday(day.key)}</span>` +
       `<span class="dm">${day.dayOfMonth}</span>` +
       `<span class="n">${count}</span>`;
     col.append(head);
@@ -279,7 +302,7 @@ function renderWeek(week) {
     if (day.releases.length === 0) {
       const p = document.createElement('p');
       p.className = 'empty';
-      p.textContent = day.isFuture ? 'sem previsão' : 'nada aqui';
+      p.textContent = t(day.isFuture ? 'day.emptyFuture' : 'day.empty');
       body.append(p);
     } else {
       for (const r of day.releases) body.append(releaseCard(r));
@@ -289,11 +312,13 @@ function renderWeek(week) {
   }
 
   const { releases, favorites, projected } = week.totals;
-  el.meta.textContent =
-    `${releases} lançamento${releases === 1 ? '' : 's'} nesta semana` +
-    (state.favOnly ? ' (só favoritos)' : ` · ${favorites} de séries favoritadas`) +
-    (projected ? ` · ${projected} previsto${projected === 1 ? '' : 's'} a partir da semana passada` : '') +
-    ` · horários em ${week.timezone}`;
+  const parts = [t('meta.releases', { count: releases })];
+  parts.push(state.favOnly
+    ? t('meta.favoritesOnly')
+    : t('meta.fromFavorites', { count: favorites }));
+  if (projected) parts.push(t('meta.projected', { count: projected }));
+  parts.push(t('meta.timezone', { timezone: week.timezone }));
+  el.meta.textContent = parts.join(' · ');
 
   // A semana atual é a última navegável: adiante só haveria previsão.
   el.next.disabled = week.range.start >= week.range.currentWeekStart;
@@ -304,26 +329,6 @@ function renderWeek(week) {
 }
 
 // ---------- frescor dos dados ----------
-
-function relativeTime(iso, nowMs = Date.now()) {
-  const min = Math.round((nowMs - new Date(iso).getTime()) / 60000);
-  if (min < 1) return 'agora mesmo';
-  if (min === 1) return 'há 1 minuto';
-  if (min < 60) return `há ${min} minutos`;
-  const h = Math.round(min / 60);
-  if (h === 1) return 'há 1 hora';
-  if (h < 24) return `há ${h} horas`;
-  const d = Math.round(h / 24);
-  return d === 1 ? 'há 1 dia' : `há ${d} dias`;
-}
-
-function clock(iso, tz) {
-  return new Date(iso).toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
-}
-
-function fullStamp(iso, tz) {
-  return new Date(iso).toLocaleString('pt-BR', { timeZone: tz });
-}
 
 /**
  * Mostra quando foi a última verificação — apenas quando a semana na tela
@@ -348,26 +353,29 @@ function renderFreshness() {
 
   if (sched.running) {
     cls += ' busy';
-    text = 'verificando…';
+    text = t('fresh.checking');
   } else if (sched.lastError) {
     cls += ' err';
-    text = 'falha ao verificar';
+    text = t('fresh.failed');
   } else if (!last) {
     cls += ' stale';
-    text = 'nunca verificado';
+    text = t('fresh.never');
   } else {
     if (stale) cls += ' stale';
-    text = `verificado ${relativeTime(last)}`;
+    text = t('fresh.checked', { when: fmtRelative(last) });
   }
 
   const lines = [
-    last ? `Última verificação: ${fullStamp(last, tz)}` : 'Nenhuma verificação ainda',
+    last ? t('fresh.lastCheck', { stamp: fmtDateTime(last, tz) }) : t('fresh.noCheck'),
     sched.enabled && sched.nextAt
-      ? `Próxima: ${clock(sched.nextAt, tz)} — a cada ${sched.intervalMin} min, ` +
-        `${sched.offsetSec}s após a grade`
-      : 'Verificação automática desligada',
+      ? t('fresh.next', {
+          time: fmtTime(sched.nextAt, tz),
+          interval: sched.intervalMin,
+          offset: sched.offsetSec,
+        })
+      : t('fresh.autoOff'),
   ];
-  if (sched.lastError) lines.push(`Erro: ${sched.lastError}`);
+  if (sched.lastError) lines.push(t('fresh.error', { message: sched.lastError }));
 
   el.freshness.className = cls;
   el.freshness.title = lines.join('\n');
@@ -414,7 +422,7 @@ async function loadWeek() {
     state.currentWeekStart = week.range.currentWeekStart;
     renderWeek(week);
   } catch (err) {
-    banner(`Não foi possível carregar a semana: ${err.message}`, 'err', 0);
+    banner(t('msg.loadFailed', { message: err.message }), 'err', 0);
   }
 }
 
@@ -429,7 +437,7 @@ async function toggleFavorite(seriesId, favorite) {
     await loadWeek();
     if (!el.drawer.hidden) await loadSeries();
   } catch (err) {
-    banner(`Erro ao favoritar: ${err.message}`, 'err');
+    banner(t('msg.favoriteFailed', { message: err.message }), 'err');
   }
 }
 
@@ -441,7 +449,7 @@ async function loadSeries() {
     if (series.length === 0) {
       const p = document.createElement('p');
       p.className = 'drawer-hint';
-      p.textContent = q ? 'Nenhuma série encontrada.' : 'Nenhuma série no banco. Clique em Atualizar.';
+      p.textContent = t(q ? 'drawer.empty' : 'drawer.emptyDb');
       el.seriesList.append(p);
       return;
     }
@@ -453,7 +461,8 @@ async function loadSeries() {
       star.className = 'sstar' + (s.isFavorite ? ' on' : '');
       star.type = 'button';
       star.textContent = s.isFavorite ? '★' : '☆';
-      star.setAttribute('aria-label', s.isFavorite ? `Desfavoritar ${s.title}` : `Favoritar ${s.title}`);
+      star.setAttribute('aria-label',
+        t(s.isFavorite ? 'drawer.unfavorite' : 'drawer.favorite', { title: s.title }));
       row.append(star);
 
       const img = document.createElement('img');
@@ -469,8 +478,10 @@ async function loadSeries() {
       name.textContent = s.title;
       const sub = document.createElement('div');
       sub.className = 'ssub';
-      sub.textContent = `${s.releaseCount} episódio${s.releaseCount === 1 ? '' : 's'}` +
-        (s.lastPremiere ? ` · último em ${s.lastPremiere.slice(0, 10).split('-').reverse().join('/')}` : '');
+      sub.textContent = t('drawer.episodes', { count: s.releaseCount }) +
+        (s.lastPremiere
+          ? ` · ${t('drawer.lastOn', { date: fmtDate(s.lastPremiere.slice(0, 10)) })}`
+          : '');
       info.append(name, sub);
       row.append(info);
 
@@ -478,7 +489,7 @@ async function loadSeries() {
       el.seriesList.append(row);
     }
   } catch (err) {
-    banner(`Erro ao listar séries: ${err.message}`, 'err');
+    banner(t('msg.seriesFailed', { message: err.message }), 'err');
   }
 }
 
@@ -498,28 +509,29 @@ async function withBusy(button, label, fn) {
   finally { button.disabled = false; button.textContent = original; }
 }
 
-el.refresh.addEventListener('click', () => withBusy(el.refresh, 'Buscando…', async () => {
+el.refresh.addEventListener('click', () => withBusy(el.refresh, t('action.refreshBusy'), async () => {
   try {
-    const t = await api('/api/collect', { method: 'POST', body: JSON.stringify({ pages: 2 }) });
+    const res = await api('/api/collect', { method: 'POST', body: JSON.stringify({ pages: 2 }) });
     await pollStatus({ reloadOnChange: false });
     await loadWeek();
     banner(
-      `Coleta concluída: ${t.inserted} novo${t.inserted === 1 ? '' : 's'}, ` +
-      `${t.updated} já conhecido${t.updated === 1 ? '' : 's'}` +
-      (t.dubs ? `, ${t.dubs} dublagem(ns) descartada(s)` : '') + '.',
-      t.inserted ? 'ok' : '',
+      t('msg.collectDone', { inserted: res.inserted, updated: res.updated }) +
+      (res.dubs ? t('msg.collectDubs', { count: res.dubs }) : '') + '.',
+      res.inserted ? 'ok' : '',
     );
   } catch (err) {
-    banner(`Falha na coleta: ${err.message}`, 'err', 8000);
+    banner(t('msg.collectFailed', { message: err.message }), 'err', 8000);
   }
 }));
 
-el.backfillBtn.addEventListener('click', () => withBusy(el.backfillBtn, 'Preenchendo…', async () => {
+el.backfillBtn.addEventListener('click', () => withBusy(el.backfillBtn, t('drawer.backfillBusy'), async () => {
   try {
-    const t = await api('/api/backfill', { method: 'POST', body: JSON.stringify({}) });
+    const res = await api('/api/backfill', { method: 'POST', body: JSON.stringify({}) });
     await loadWeek();
     await loadSeries();
-    banner(`Histórico: ${t.series} série(s), ${t.episodes} episódios (+${t.inserted} novos).`, 'ok', 6000);
+    banner(t('msg.backfillDone', {
+      series: res.series, episodes: res.episodes, inserted: res.inserted,
+    }), 'ok', 6000);
   } catch (err) {
     banner(err.message, 'err', 7000);
   }
@@ -541,6 +553,23 @@ el.showProj.addEventListener('change', () => {
   state.showProj = el.showProj.checked;
   localStorage.setItem('showProj', state.showProj ? '1' : '0');
   loadWeek();
+});
+
+// Idioma: detectado pelo navegador na primeira visita, trocável aqui.
+for (const [code, label] of Object.entries(LANGS)) {
+  const opt = document.createElement('option');
+  opt.value = code;
+  opt.textContent = label;
+  el.lang.append(opt);
+}
+el.lang.value = getLang();
+el.lang.addEventListener('change', () => setLang(el.lang.value));
+
+onLangChange(() => {
+  applyStatic();
+  if (state.week) renderWeek(state.week);   // datas e textos dos cards
+  renderFreshness();
+  if (!el.drawer.hidden) loadSeries();
 });
 
 el.openFavs.addEventListener('click', () => openDrawer(true));
@@ -565,6 +594,8 @@ document.addEventListener('keydown', (ev) => {
 
 // ---------- início ----------
 
+applyStatic();
+
 // Mantém o rótulo de frescor vivo e detecta coletas feitas pelo servidor.
 setInterval(pollStatus, STATUS_POLL_MS);
 
@@ -576,6 +607,6 @@ document.addEventListener('visibilitychange', () => {
 loadWeek().then(async () => {
   await pollStatus({ reloadOnChange: false });
   if (state.status?.releases === 0) {
-    banner('Banco vazio. Clique em "Atualizar" para buscar os lançamentos.', '', 0);
+    banner(t('msg.emptyDb'), '', 0);
   }
 });

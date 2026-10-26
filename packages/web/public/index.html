@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en-US">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Anime Week — lançamentos da semana</title>
+<title>Anime Week</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📺</text></svg>">
 <link rel="stylesheet" href="/styles.css">
 </head>
@@ -12,13 +12,16 @@
 <header class="topbar">
   <div class="brand">
     <span class="brand-mark" aria-hidden="true"></span>
-    <h1>Anime Week</h1>
+    <h1 data-i18n="app.name">Anime Week</h1>
   </div>
 
-  <nav class="weeknav" aria-label="Navegação de semanas">
-    <button id="prev" class="btn icon" title="Semana anterior" aria-label="Semana anterior">‹</button>
-    <button id="today" class="btn" title="Voltar para a semana atual">Hoje</button>
-    <button id="next" class="btn icon" title="Semana seguinte" aria-label="Semana seguinte">›</button>
+  <nav class="weeknav" aria-label="Week navigation">
+    <button id="prev" class="btn icon"
+            data-i18n-title="nav.prev" data-i18n-label="nav.prev">‹</button>
+    <button id="today" class="btn"
+            data-i18n="nav.today" data-i18n-title="nav.todayTitle">Today</button>
+    <button id="next" class="btn icon"
+            data-i18n-title="nav.next" data-i18n-label="nav.next">›</button>
     <span id="range" class="range"></span>
   </nav>
 
@@ -27,17 +30,23 @@
       <span class="dot" aria-hidden="true"></span>
       <span id="freshnessText"></span>
     </span>
-    <label class="toggle" title="Mostrar apenas séries favoritadas">
+
+    <label class="toggle" data-i18n-title="toggle.favoritesTitle">
       <input type="checkbox" id="favOnly">
-      <span>★ Só favoritos</span>
+      <span data-i18n="toggle.favorites">★ Favorites only</span>
     </label>
-    <label class="toggle" id="projToggle"
-           title="Nos dias que ainda não chegaram, repetir o que saiu na semana passada">
+
+    <label class="toggle" data-i18n-title="toggle.projectionsTitle">
       <input type="checkbox" id="showProj" checked>
-      <span>Previsões</span>
+      <span data-i18n="toggle.projections">Forecast</span>
     </label>
-    <button id="openFavs" class="btn">Gerenciar séries</button>
-    <button id="refresh" class="btn primary" title="Buscar novos lançamentos no Crunchyroll">Atualizar</button>
+
+    <button id="openFavs" class="btn" data-i18n="action.manage">Manage series</button>
+
+    <button id="refresh" class="btn primary"
+            data-i18n="action.refresh" data-i18n-title="action.refreshTitle">Refresh</button>
+
+    <select id="lang" class="lang" data-i18n-label="lang.label"></select>
   </div>
 </header>
 
@@ -49,20 +58,17 @@
 </main>
 
 <!-- Painel de gerenciamento de séries / favoritos -->
-<aside id="drawer" class="drawer" hidden aria-label="Gerenciar séries">
+<aside id="drawer" class="drawer" hidden data-i18n-label="drawer.title">
   <div class="drawer-head">
-    <h2>Séries</h2>
-    <button id="closeFavs" class="btn icon" aria-label="Fechar">×</button>
+    <h2 data-i18n="drawer.title">Series</h2>
+    <button id="closeFavs" class="btn icon" data-i18n-label="action.close">×</button>
   </div>
-  <p class="drawer-hint">
-    Marque as séries que você acompanha. O filtro <strong>★ Só favoritos</strong>
-    passa a mostrar apenas elas.
-  </p>
-  <input type="search" id="seriesSearch" class="search" placeholder="Buscar série…" autocomplete="off">
+  <p class="drawer-hint" data-i18n="drawer.hint"></p>
+  <input type="search" id="seriesSearch" class="search" autocomplete="off"
+         data-i18n-placeholder="drawer.search">
   <div class="drawer-tools">
-    <button id="backfillBtn" class="btn small" title="Buscar todo o histórico de episódios das séries favoritadas">
-      Preencher histórico dos favoritos
-    </button>
+    <button id="backfillBtn" class="btn small"
+            data-i18n="drawer.backfill" data-i18n-title="drawer.backfillTitle"></button>
   </div>
   <div id="seriesList" class="series-list"></div>
 </aside>
