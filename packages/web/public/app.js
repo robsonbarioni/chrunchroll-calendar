@@ -186,12 +186,13 @@ function releaseCard(r) {
   st.textContent = r.seriesTitle;
   info.append(st);
 
-  if (r.title && r.title !== String(r.episodeNumber)) {
-    const et = document.createElement('span');
-    et.className = 'et';
-    et.textContent = r.title;
-    info.append(et);
-  }
+  // Sempre presente, mesmo vazio: reserva a linha e mantém todos os cards
+  // com a mesma altura, para os dias alinharem na horizontal.
+  const et = document.createElement('span');
+  et.className = 'et';
+  et.textContent = (r.title && r.title !== String(r.episodeNumber)) ? r.title : '';
+  info.append(et);
+
   a.append(info);
 
   // --- ações ---

@@ -210,7 +210,7 @@ main { padding: 16px 20px 40px; }
 .day-head .dm { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .day-head .n { margin-left: auto; font-size: 11px; color: var(--text-faint); }
 
-.day-body { display: flex; flex-direction: column; gap: 1px; padding: 6px; }
+.day-body { display: flex; flex-direction: column; gap: 14px; padding: 8px 7px 10px; }
 
 .empty { padding: 14px 11px; color: var(--text-faint); font-size: 12px; font-style: italic; }
 
@@ -218,7 +218,7 @@ main { padding: 16px 20px 40px; }
 
 .rel {
   display: block;
-  padding: 0 0 9px;
+  padding: 0 0 4px;
   border-radius: 9px;
   text-decoration: none;
   color: inherit;
@@ -290,10 +290,17 @@ main { padding: 16px 20px 40px; }
   backdrop-filter: blur(2px);
 }
 
+/*
+ * Título e nome do episódio ocupam sempre a mesma altura — 2 linhas e 1 linha —
+ * mesmo quando o texto é curto. Sem isso cada card tem uma altura diferente e
+ * os dias vizinhos param de alinhar na horizontal. As medidas são em `em`, para
+ * acompanharem a fonte em vez de depender de um número fixo de pixels.
+ */
 .rel .st {
   font-size: 13px;
   font-weight: 600;
   line-height: 1.3;
+  min-height: 2.6em;   /* 2 linhas */
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -303,6 +310,8 @@ main { padding: 16px 20px 40px; }
 .rel .et {
   display: block;
   font-size: 11px;
+  line-height: 1.35;
+  min-height: 1.35em;  /* 1 linha, mesmo vazio */
   color: var(--text-dim);
   margin-top: 2px;
   white-space: nowrap;
@@ -499,9 +508,9 @@ main { padding: 16px 20px 40px; }
     padding: 6px;
     align-items: start;
   }
-  .rel .shot { grid-row: span 2; }
   /* As ações ficam fixas no canto do card: o texto recua para não passar por baixo. */
   .rel .info { padding: 2px 60px 0 0; }
+  .day-body { gap: 12px; }
   .rel .tool { opacity: 1; }
 }
 

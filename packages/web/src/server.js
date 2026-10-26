@@ -61,7 +61,11 @@ function serveStatic(res, urlPath) {
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(target).toLowerCase()] ?? 'application/octet-stream',
       'Content-Length': stat.size,
-      'Cache-Control': 'no-cache',
+      // `no-cache` sozinho, sem ETag nem Last-Modified, não dá ao navegador como
+      // revalidar — e ele acaba servindo um app.js velho depois de uma alteração.
+      // Em localhost o download é instantâneo, então `no-store` é o seguro.
+      'Cache-Control': 'no-store, must-revalidate',
+      'Last-Modified': stat.mtime.toUTCString(),
     });
     fs.createReadStream(target).pipe(res);
   });
