@@ -97,6 +97,45 @@ body {
 }
 .btn.primary:hover:not(:disabled) { background: #ff8a3d; border-color: #ff8a3d; }
 
+/* indicador de frescor — só aparece quando hoje está na tela */
+
+.fresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.fresh .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+
+.fresh.stale { color: #ffd0a8; border-color: #5a3a1f; background: var(--accent-soft); }
+.fresh.stale .dot { background: var(--accent); }
+
+.fresh.err { color: #ffbcbc; border-color: #5a1f1f; background: #ff5c5c14; }
+.fresh.err .dot { background: #ff5c5c; }
+
+.fresh.busy .dot { animation: pulse 1.1s ease-in-out infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .35; transform: scale(.7); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fresh.busy .dot { animation: none; }
+}
+
 .toggle {
   display: flex; align-items: center; gap: 7px;
   font-size: 13px; color: var(--text-dim);

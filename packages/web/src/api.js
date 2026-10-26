@@ -1,5 +1,12 @@
-import { Store, CrunchyrollClient, dates, config } from '@anime-week/core';
+import { Store, CrunchyrollClient, dates, config, nextTick } from '@anime-week/core';
 import { collect, backfill } from '@anime-week/collector/src/collect.js';
+
+/** Estado da coleta automática, preenchido pelo agendador do servidor. */
+export const schedulerState = {
+  running: false,
+  nextAt: null,
+  lastError: null,
+};
 
 /**
  * Monta a semana: agrupa os lançamentos por dia LOCAL (no fuso configurado).
@@ -99,12 +106,28 @@ export const routes = {
     ...store.stats(),
     timezone: config.tz,
     today: dates.todayKey(),
+    now: new Date().toISOString(),
+    scheduler: {
+      enabled: config.autoCollect,
+      running: schedulerState.running,
+      intervalMin: config.intervalMin,
+      offsetSec: config.offsetSec,
+      nextAt: schedulerState.nextAt ?? (config.autoCollect ? nextTick().toISOString() : null),
+      lastError: schedulerState.lastError,
+    },
   }),
 
   'POST /api/collect': async ({ store, body }) => {
+    if (schedulerState.running) throw new HttpProblem(409, 'Já existe uma coleta em andamento');
     const pages = Math.min(Math.max(Number(body?.pages ?? 2), 1), 20);
-    const totals = await collect({ store, pages, log: () => {} });
-    return totals;
+    schedulerState.running = true;
+    try {
+      const totals = await collect({ store, pages, log: () => {} });
+      schedulerState.lastError = null;
+      return { ...totals, collectedAt: store.getMeta('last_collected_at') };
+    } finally {
+      schedulerState.running = false;
+    }
   },
 
   'POST /api/backfill': async ({ store, body }) => {

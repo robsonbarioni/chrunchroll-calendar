@@ -6,18 +6,23 @@ const el = {
   calendar: $('#calendar'), meta: $('#meta'), range: $('#range'), banner: $('#banner'),
   prev: $('#prev'), next: $('#next'), today: $('#today'),
   favOnly: $('#favOnly'), refresh: $('#refresh'),
+  freshness: $('#freshness'), freshnessText: $('#freshnessText'),
   openFavs: $('#openFavs'), closeFavs: $('#closeFavs'),
   drawer: $('#drawer'), scrim: $('#scrim'),
   seriesList: $('#seriesList'), seriesSearch: $('#seriesSearch'), backfillBtn: $('#backfillBtn'),
 };
 
 const DAYS = 7;
+const STATUS_POLL_MS = 30_000;   // ritmo de atualização do rótulo de frescor
 
 const state = {
   endKey: null,          // último dia da janela exibida (YYYY-MM-DD)
   todayKey: null,
   favOnly: localStorage.getItem('favOnly') === '1',
   week: null,
+  status: null,
+  showsToday: false,     // a semana visível contém o dia de hoje?
+  lastCollectedAt: null, // usado para detectar que uma coleta nova chegou
 };
 
 // ---------- utilidades ----------
@@ -162,6 +167,107 @@ function renderWeek(week) {
 
   // No futuro não há o que mostrar além de hoje.
   el.next.disabled = week.range.end >= state.todayKey;
+
+  // O indicador de frescor só faz sentido quando hoje está visível.
+  state.showsToday = week.days.some((d) => d.isToday);
+  renderFreshness();
+}
+
+// ---------- frescor dos dados ----------
+
+function relativeTime(iso, nowMs = Date.now()) {
+  const min = Math.round((nowMs - new Date(iso).getTime()) / 60000);
+  if (min < 1) return 'agora mesmo';
+  if (min === 1) return 'há 1 minuto';
+  if (min < 60) return `há ${min} minutos`;
+  const h = Math.round(min / 60);
+  if (h === 1) return 'há 1 hora';
+  if (h < 24) return `há ${h} horas`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'há 1 dia' : `há ${d} dias`;
+}
+
+function clock(iso, tz) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+}
+
+function fullStamp(iso, tz) {
+  return new Date(iso).toLocaleString('pt-BR', { timeZone: tz });
+}
+
+/**
+ * Mostra quando foi a última verificação — apenas quando a semana na tela
+ * inclui o dia de hoje, já que em semanas passadas o dado não muda mais.
+ */
+function renderFreshness() {
+  const s = state.status;
+  if (!state.showsToday || !s) {
+    el.freshness.hidden = true;
+    return;
+  }
+
+  const tz = s.timezone;
+  const sched = s.scheduler ?? {};
+  const last = s.lastCollectedAt;
+  const ageMin = last ? (Date.now() - new Date(last).getTime()) / 60000 : Infinity;
+  // Tolera uma coleta perdida antes de sinalizar atraso.
+  const stale = ageMin > (sched.intervalMin ?? 15) * 2 + 2;
+
+  let cls = 'fresh';
+  let text;
+
+  if (sched.running) {
+    cls += ' busy';
+    text = 'verificando…';
+  } else if (sched.lastError) {
+    cls += ' err';
+    text = 'falha ao verificar';
+  } else if (!last) {
+    cls += ' stale';
+    text = 'nunca verificado';
+  } else {
+    if (stale) cls += ' stale';
+    text = `verificado ${relativeTime(last)}`;
+  }
+
+  const lines = [
+    last ? `Última verificação: ${fullStamp(last, tz)}` : 'Nenhuma verificação ainda',
+    sched.enabled && sched.nextAt
+      ? `Próxima: ${clock(sched.nextAt, tz)} — a cada ${sched.intervalMin} min, ` +
+        `${sched.offsetSec}s após a grade`
+      : 'Verificação automática desligada',
+  ];
+  if (sched.lastError) lines.push(`Erro: ${sched.lastError}`);
+
+  el.freshness.className = cls;
+  el.freshness.title = lines.join('\n');
+  el.freshnessText.textContent = text;
+  el.freshness.hidden = false;
+}
+
+/**
+ * Consulta o estado do servidor. Quando detecta que uma coleta nova entrou,
+ * recarrega a semana sozinho — é o que mantém a tela atualizada sem recarregar
+ * a página.
+ */
+async function pollStatus({ reloadOnChange = true } = {}) {
+  try {
+    const s = await api('/api/status');
+    const isFirst = state.status === null;
+    const changed = s.lastCollectedAt !== state.lastCollectedAt;
+
+    state.status = s;
+    state.lastCollectedAt = s.lastCollectedAt;
+    if (s.today) state.todayKey = s.today;
+
+    if (changed && !isFirst && reloadOnChange) {
+      await loadWeek();          // loadWeek já chama renderFreshness
+    } else {
+      renderFreshness();
+    }
+  } catch {
+    // Servidor fora do ar: preserva o último rótulo conhecido.
+  }
 }
 
 async function loadWeek() {
@@ -259,6 +365,7 @@ async function withBusy(button, label, fn) {
 el.refresh.addEventListener('click', () => withBusy(el.refresh, 'Buscando…', async () => {
   try {
     const t = await api('/api/collect', { method: 'POST', body: JSON.stringify({ pages: 2 }) });
+    await pollStatus({ reloadOnChange: false });
     await loadWeek();
     banner(
       `Coleta concluída: ${t.inserted} novo${t.inserted === 1 ? '' : 's'}, ` +
@@ -315,9 +422,17 @@ document.addEventListener('keydown', (ev) => {
 
 // ---------- início ----------
 
+// Mantém o rótulo de frescor vivo e detecta coletas feitas pelo servidor.
+setInterval(pollStatus, STATUS_POLL_MS);
+
+// Ao voltar para a aba, confere na hora em vez de esperar o próximo ciclo.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) pollStatus();
+});
+
 loadWeek().then(async () => {
-  try {
-    const s = await api('/api/status');
-    if (s.releases === 0) banner('Banco vazio. Clique em "Atualizar" para buscar os lançamentos.', '', 0);
-  } catch { /* status é opcional */ }
+  await pollStatus({ reloadOnChange: false });
+  if (state.status?.releases === 0) {
+    banner('Banco vazio. Clique em "Atualizar" para buscar os lançamentos.', '', 0);
+  }
 });

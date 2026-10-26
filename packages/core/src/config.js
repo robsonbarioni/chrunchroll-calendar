@@ -24,5 +24,12 @@ export const config = {
   tz: process.env.TZ_DISPLAY || 'America/Sao_Paulo',
   dbPath: path.resolve(ROOT, process.env.DB_PATH || './data/anime-week.db'),
   port: Number(process.env.PORT || 5173),
-  intervalMin: Number(process.env.COLLECT_INTERVAL_MIN || 30),
+  /** Minutos entre coletas automáticas. */
+  intervalMin: Number(process.env.COLLECT_INTERVAL_MIN || 15),
+  /** Atraso aplicado sobre a grade, para dar tempo do episódio ser indexado. */
+  offsetSec: Number(process.env.COLLECT_OFFSET_SEC || 120),
+  /** O servidor web coleta sozinho? */
+  autoCollect: (process.env.AUTO_COLLECT ?? '1') !== '0',
+  /** Páginas buscadas em cada coleta automática. */
+  autoPages: Number(process.env.COLLECT_PAGES || 2),
 };

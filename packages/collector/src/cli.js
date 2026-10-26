@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Store, CrunchyrollClient, config, dates } from '@anime-week/core';
+import { Store, CrunchyrollClient, config, dates, nextTick, scheduleAligned } from '@anime-week/core';
 import { collect, backfill } from './collect.js';
 
 function parseArgs(argv) {
@@ -28,8 +28,9 @@ anime-week — coletor de lançamentos do Crunchyroll
     --all              Todas as séries já vistas no banco
     --series ID,ID     Séries específicas, por id
 
-  watch                Coleta em loop
+  watch                Coleta em loop, na grade alinhada
     --interval N       Minutos entre coletas (padrão: ${config.intervalMin})
+    --offset N         Segundos após a grade (padrão: ${config.offsetSec})
 
   stats                Mostra o estado do banco
   seasons              Lista as temporadas de lançamento disponíveis
@@ -83,24 +84,31 @@ async function main() {
     }
 
     case 'watch': {
-      const minutes = Number(args.interval ?? config.intervalMin);
+      const intervalMin = Number(args.interval ?? config.intervalMin);
+      const offsetSec = Number(args.offset ?? config.offsetSec);
       const store = new Store();
       const client = new CrunchyrollClient();
-      const pages = Number(args.pages ?? 2);
-      console.log(`Modo watch: coletando a cada ${minutes} min. Ctrl+C para parar.`);
+      const pages = Number(args.pages ?? config.autoPages);
+
+      const at = (d) => d.toLocaleTimeString('pt-BR', { timeZone: config.tz, hour: '2-digit', minute: '2-digit' });
+      console.log(`Modo watch: a cada ${intervalMin} min, ${offsetSec}s após a grade ` +
+                  `(próxima às ${at(nextTick(Date.now(), { intervalMin, offsetSec }))}). Ctrl+C para parar.`);
+
       const run = async () => {
         try {
-          console.log(`[${stamp()}] Coletando…`);
           const t = await collect({ store, client, pages, log: () => {} });
-          console.log(`[${stamp()}] +${t.inserted} novos, ~${t.updated} atualizados, ` +
-                      `${t.dubs} dublagens descartadas.`);
+          console.log(`[${stamp()}] +${t.inserted} novos, ~${t.updated} atualizados.`);
         } catch (err) {
           console.error(`[${stamp()}] Erro na coleta: ${err.message}`);
         }
       };
       await run();
-      const timer = setInterval(run, minutes * 60_000);
-      const stop = () => { clearInterval(timer); store.close(); process.exit(0); };
+
+      const stopScheduler = scheduleAligned(run, {
+        intervalMin, offsetSec,
+        onSchedule: (when) => console.log(`[${stamp()}] próxima coleta às ${at(when)}`),
+      });
+      const stop = () => { stopScheduler(); store.close(); process.exit(0); };
       process.on('SIGINT', stop);
       process.on('SIGTERM', stop);
       break;

@@ -2,8 +2,9 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Store, config } from '@anime-week/core';
-import { routes, HttpProblem } from './api.js';
+import { Store, config, scheduleAligned, nextTick } from '@anime-week/core';
+import { collect } from '@anime-week/collector/src/collect.js';
+import { routes, HttpProblem, schedulerState } from './api.js';
 
 const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public');
 
@@ -88,17 +89,68 @@ const server = http.createServer(async (req, res) => {
   serveStatic(res, url.pathname);
 });
 
+/**
+ * Coleta automática na grade alinhada (ex.: :02, :17, :32, :47).
+ * Roda no servidor, então o banco continua atualizado mesmo sem navegador
+ * aberto; a interface só observa o resultado.
+ */
+function hhmm(date) {
+  return date.toLocaleTimeString('pt-BR', { timeZone: config.tz, hour: '2-digit', minute: '2-digit' });
+}
+
+async function runScheduledCollect(reason) {
+  if (schedulerState.running) return;
+  schedulerState.running = true;
+  try {
+    const t = await collect({ store, pages: config.autoPages, log: () => {} });
+    schedulerState.lastError = null;
+    const when = new Date().toLocaleTimeString('pt-BR', { timeZone: config.tz });
+    console.log(`[${when}] coleta ${reason}: +${t.inserted} novos, ~${t.updated} conhecidos`);
+  } catch (err) {
+    schedulerState.lastError = err.message;
+    console.error(`[${hhmm(new Date())}] falha na coleta ${reason}: ${err.message}`);
+  } finally {
+    schedulerState.running = false;
+  }
+}
+
+let stopScheduler = null;
+
+function startScheduler() {
+  stopScheduler = scheduleAligned(
+    () => runScheduledCollect('agendada'),
+    { onSchedule: (at) => { schedulerState.nextAt = at.toISOString(); } },
+  );
+
+  // Se o banco já está velho (servidor ficou desligado), não espera a grade.
+  const last = store.getMeta('last_collected_at');
+  const staleMs = config.intervalMin * 60_000;
+  if (!last || Date.now() - new Date(last).getTime() > staleMs) {
+    setTimeout(() => runScheduledCollect('de partida'), 1000);
+  }
+}
+
 server.listen(config.port, () => {
   const s = store.stats();
   console.log(`\n  Anime Week  ·  http://localhost:${config.port}`);
   console.log(`  ${s.releases} lançamentos · ${s.series} séries · ${s.favorites} favoritas`);
   console.log(`  fuso: ${config.tz}`);
+
+  if (config.autoCollect) {
+    startScheduler();
+    console.log(`  coleta automática: a cada ${config.intervalMin} min, ` +
+                `${config.offsetSec}s após a grade (próxima às ${hhmm(nextTick())})`);
+  } else {
+    console.log('  coleta automática: desligada (AUTO_COLLECT=0)');
+  }
+
   if (s.releases === 0) console.log('\n  Banco vazio — rode:  npm run collect\n');
   else console.log('');
 });
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
+    stopScheduler?.();
     server.close(() => { store.close(); process.exit(0); });
   });
 }

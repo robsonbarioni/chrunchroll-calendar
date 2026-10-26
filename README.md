@@ -62,7 +62,7 @@ npm start
 | Comando | O que faz |
 | --- | --- |
 | `npm run collect` | Coleta os lançamentos recentes (`--pages N`, padrão 3) |
-| `npm run watch` | Coleta em loop (`--interval N` minutos, padrão 30) |
+| `npm run watch` | Coleta em loop na grade alinhada (`--interval`, `--offset`) |
 | `npm run backfill` | Puxa o histórico completo das séries favoritadas |
 | `npm run stats` | Mostra o estado do banco e um gráfico dos 7 dias |
 
@@ -73,6 +73,36 @@ node packages/collector/src/cli.js backfill --series GQWH0M19X
 # coleta mais profunda, para encher o histórico de uma vez
 node packages/collector/src/cli.js collect --pages 10
 ```
+
+## Coleta automática
+
+O servidor web verifica o Crunchyroll sozinho a cada 15 minutos, **2 minutos
+depois da grade** — às `:02`, `:17`, `:32` e `:47`. O atraso existe porque um
+episódio marcado para as 09:00 leva alguns segundos até aparecer no catálogo:
+consultar exatamente às 09:00 devolveria a lista sem ele.
+
+Enquanto a semana visível contém o dia de hoje, a barra superior mostra quando
+foi a última verificação:
+
+```
+● verificado há 3 minutos        ← passe o mouse para ver a próxima
+```
+
+O ponto fica verde quando está em dia, pulsa durante a verificação, e vira
+laranja se passaram duas janelas sem sucesso. Em semanas passadas o indicador
+some, porque ali o dado não muda mais. A tela se atualiza sozinha quando uma
+coleta nova entra — sem recarregar a página.
+
+Ajuste pelo `.env`:
+
+| Variável | Padrão | O que faz |
+| --- | --- | --- |
+| `COLLECT_INTERVAL_MIN` | `15` | Intervalo entre verificações |
+| `COLLECT_OFFSET_SEC` | `120` | Atraso sobre a grade |
+| `COLLECT_PAGES` | `2` | Páginas buscadas por verificação |
+| `AUTO_COLLECT` | `1` | `0` desliga a coleta do servidor |
+
+Para coletar sem manter a interface aberta, `npm run watch` usa a mesma grade.
 
 ### Na interface
 
@@ -93,6 +123,7 @@ packages/
 │   ├── crunchyroll.js  cliente da API (token anônimo, browse, CMS)
 │   ├── normalize.js    filtro de dublagem e deduplicação
 │   ├── dates.js        janelas semanais e conversão de fuso
+│   ├── schedule.js     grade de coleta (intervalo + offset)
 │   └── db.js           SQLite (node:sqlite)
 ├── collector/    @anime-week/collector — CLI de coleta e backfill
 └── web/          @anime-week/web       — API HTTP + interface
