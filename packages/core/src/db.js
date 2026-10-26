@@ -60,6 +60,7 @@ const ADDED_COLUMNS = [
   ['releases', 'description', 'TEXT'],
   ['series', 'poster_tall', 'TEXT'],
   ['series', 'artwork_at', 'TEXT'],
+  ['series', 'watched_through_at', 'TEXT'],
 ];
 
 export class Store {
@@ -119,8 +120,10 @@ export class Store {
     if (q) { where.push('s.title LIKE ?'); args.push(`%${q}%`); }
     return this.db.prepare(`
       SELECT s.id, s.title, s.slug_title, s.poster_wide, s.poster_tall, s.is_favorite,
+             s.watched_through_at,
              COUNT(r.dedupe_key) AS release_count,
-             MAX(r.premiere_at)  AS last_premiere
+             MAX(r.premiere_at)  AS last_premiere,
+             SUM(CASE WHEN r.premiere_at > s.watched_through_at THEN 1 ELSE 0 END) AS unwatched_count
       FROM series s
       LEFT JOIN releases r ON r.series_id = s.id
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
@@ -133,6 +136,29 @@ export class Store {
     const r = this.db.prepare('UPDATE series SET is_favorite = ? WHERE id = ?')
       .run(favorite ? 1 : 0, seriesId);
     return r.changes > 0;
+  }
+
+  /**
+   * Marca até onde a série foi assistida.
+   *
+   * Guardamos um único instante por série, e não uma linha por episódio: tudo
+   * que estreou até ele conta como visto. Marcar um episódio, portanto, marca
+   * também todos os anteriores — inclusive de temporadas passadas. Desmarcar
+   * recua a marca para o episódio imediatamente anterior, desmarcando este e
+   * os seguintes. Devolve a nova marca, ou `undefined` se o episódio não existe.
+   */
+  setWatched(releaseId, watched) {
+    const rel = this.db.prepare('SELECT series_id, premiere_at FROM releases WHERE id = ?')
+      .get(releaseId);
+    if (!rel) return undefined;
+    const through = watched
+      ? rel.premiere_at
+      : this.db.prepare(
+          'SELECT MAX(premiere_at) AS at FROM releases WHERE series_id = ? AND premiere_at < ?',
+        ).get(rel.series_id, rel.premiere_at).at ?? null;
+    this.db.prepare('UPDATE series SET watched_through_at = ? WHERE id = ?')
+      .run(through, rel.series_id);
+    return { seriesId: rel.series_id, watchedThrough: through };
   }
 
   /** Séries que ainda não tiveram a capa oficial buscada. */
@@ -216,7 +242,7 @@ export class Store {
     const placeholders = kinds.map(() => '?').join(',');
     return this.db.prepare(`
       SELECT r.*, COALESCE(s.is_favorite, 0) AS is_favorite,
-             s.poster_wide, s.poster_tall
+             s.poster_wide, s.poster_tall, s.watched_through_at
       FROM releases r
       LEFT JOIN series s ON s.id = r.series_id
       WHERE r.premiere_at >= ? AND r.premiere_at < ?

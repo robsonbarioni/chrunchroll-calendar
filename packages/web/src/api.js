@@ -33,6 +33,8 @@ function toItem(r) {
     url: r.url,
     isPremiumOnly: !!r.is_premium_only,
     isFavorite: !!r.is_favorite,
+    // Visto = estreou até a marca da série (ver Store.setWatched).
+    isWatched: !!r.watched_through_at && r.premiere_at <= r.watched_through_at,
     kind: r.kind,
     durationMin: r.duration_ms ? Math.round(r.duration_ms / 60000) : null,
     audioLocale: r.audio_locale,
@@ -55,6 +57,7 @@ function toProjection(item, { weeksSeen, weeksChecked }) {
     premiereAt: at,
     time: dates.timeLabel(at),
     url: item.seriesUrl ?? item.url,
+    isWatched: false,
     isProjection: true,
     // Em quantas das últimas semanas a série realmente saiu neste dia. Uma
     // temporada que acabou continua "prevista" por uma semana; esse número é
@@ -188,6 +191,8 @@ export const routes = {
       isFavorite: !!s.is_favorite,
       releaseCount: s.release_count,
       lastPremiere: s.last_premiere,
+      watchedThrough: s.watched_through_at,
+      unwatchedCount: s.watched_through_at ? s.unwatched_count : null,
     })),
   }),
 
@@ -196,6 +201,13 @@ export const routes = {
     const ok = store.setFavorite(body.seriesId, !!body.favorite);
     if (!ok) throw new HttpProblem(404, `Série ${body.seriesId} não encontrada`);
     return { seriesId: body.seriesId, favorite: !!body.favorite };
+  },
+
+  'POST /api/watched': ({ store, body }) => {
+    if (!body?.releaseId) throw new HttpProblem(400, 'releaseId é obrigatório');
+    const res = store.setWatched(body.releaseId, !!body.watched);
+    if (!res) throw new HttpProblem(404, `Episódio ${body.releaseId} não encontrado`);
+    return res;
   },
 
   'GET /api/status': ({ store }) => ({

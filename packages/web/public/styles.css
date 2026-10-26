@@ -462,6 +462,14 @@ main { padding: 16px 20px 40px; }
 .rel .tool.star.on { color: var(--gold); }
 .rel .tool.star:hover { color: var(--gold); }
 .rel .tool.series:hover { color: var(--accent); }
+.rel .tool.seen { font-weight: 800; }
+.rel .tool.seen.on { color: var(--cyan); }
+.rel .tool.seen:hover { color: var(--cyan); }
+
+/* Visto: a arte apaga, para o olho cair primeiro no que ainda falta assistir. */
+.rel.seen .thumb { filter: brightness(.45) saturate(.6); }
+.rel.seen:hover .thumb { filter: brightness(.7) saturate(.8); }
+.rel.seen .st { color: var(--text-faint); }
 .rel .tool.series svg { width: 13px; height: 13px; fill: currentColor; }
 
 /* Sem hover (toque): mantém as ações sempre visíveis. */
@@ -579,6 +587,8 @@ main { padding: 16px 20px 40px; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .srow .ssub { font-size: 11px; color: var(--text-ghost); }
+.srow .swatch { display: inline; color: var(--accent-hover); }
+.srow .swatch.done { color: var(--cyan); }
 
 /* ---------- responsivo ---------- */
 

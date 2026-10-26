@@ -166,7 +166,8 @@ const preview = (() => {
 
 function releaseCard(r) {
   const a = document.createElement('a');
-  a.className = 'rel' + (r.isFavorite ? ' fav' : '') + (r.isProjection ? ' proj' : '');
+  a.className = 'rel' + (r.isFavorite ? ' fav' : '') + (r.isProjection ? ' proj' : '') +
+    (r.isWatched ? ' seen' : '');
   a.href = r.url;
   a.target = '_blank';
   a.rel = 'noopener';
@@ -250,6 +251,23 @@ function releaseCard(r) {
   // --- ações ---
   const tools = document.createElement('span');
   tools.className = 'tools';
+
+  // Previsão não é episódio publicado: não há o que marcar como visto.
+  if (!r.isProjection) {
+    const seen = document.createElement('button');
+    seen.className = 'tool seen' + (r.isWatched ? ' on' : '');
+    seen.type = 'button';
+    seen.textContent = '✓';
+    seen.title = t(r.isWatched ? 'card.unmarkWatched' : 'card.markWatched');
+    seen.setAttribute('aria-label', seen.title);
+    seen.setAttribute('aria-pressed', String(r.isWatched));
+    seen.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggleWatched(r.id, !r.isWatched);
+    });
+    tools.append(seen);
+  }
 
   const star = document.createElement('button');
   star.className = 'tool star' + (r.isFavorite ? ' on' : '');
@@ -449,6 +467,21 @@ async function toggleFavorite(seriesId, favorite) {
   }
 }
 
+// ---------- vistos ----------
+
+async function toggleWatched(releaseId, watched) {
+  try {
+    await api('/api/watched', {
+      method: 'POST',
+      body: JSON.stringify({ releaseId, watched }),
+    });
+    await loadWeek();
+    if (!el.drawer.hidden) await loadSeries();
+  } catch (err) {
+    banner(t('msg.watchedFailed', { message: err.message }), 'err');
+  }
+}
+
 async function loadSeries() {
   const q = el.seriesSearch.value.trim();
   try {
@@ -490,6 +523,15 @@ async function loadSeries() {
         (s.lastPremiere
           ? ` · ${t('drawer.lastOn', { date: fmtDate(s.lastPremiere.slice(0, 10)) })}`
           : '');
+      // Só para séries que o usuário já começou a marcar: é o "estou em dia?".
+      if (s.unwatchedCount != null) {
+        const w = document.createElement('div');
+        w.className = 'swatch' + (s.unwatchedCount === 0 ? ' done' : '');
+        w.textContent = s.unwatchedCount === 0
+          ? t('drawer.upToDate')
+          : t('drawer.unwatched', { count: s.unwatchedCount });
+        sub.append(' · ', w);
+      }
       info.append(name, sub);
       row.append(info);
 

@@ -75,6 +75,8 @@ const CATALOG = {
     'drawer.emptyDb': 'No series yet. Click Refresh.',
     'drawer.episodes': { one: '{count} episode', other: '{count} episodes' },
     'drawer.lastOn': 'last on {date}',
+    'drawer.upToDate': 'up to date',
+    'drawer.unwatched': { one: '{count} unwatched', other: '{count} unwatched' },
     'drawer.favorite': 'Add {title} to favorites',
     'drawer.unfavorite': 'Remove {title} from favorites',
 
@@ -88,6 +90,8 @@ const CATALOG = {
     'card.special': 'special',
     'card.favorite': 'Add series to favorites',
     'card.unfavorite': 'Remove series from favorites',
+    'card.markWatched': 'Mark as watched (and every earlier episode)',
+    'card.unmarkWatched': 'Mark as unwatched (and every later episode)',
     'card.openSeries': 'Open {title} on Crunchyroll',
     'card.openSeriesAria': 'Open the series page for {title}',
     'card.seasonNote':
@@ -132,6 +136,7 @@ const CATALOG = {
 
     'msg.loadFailed': 'Could not load the week: {message}',
     'msg.favoriteFailed': 'Could not change the favorite: {message}',
+    'msg.watchedFailed': 'Could not mark as watched: {message}',
     'msg.seriesFailed': 'Could not list the series: {message}',
     'msg.collectDone': 'Done: {inserted} new, {updated} already known',
     'msg.collectDubs': ', {count} dubs discarded',
@@ -176,6 +181,8 @@ const CATALOG = {
     'drawer.emptyDb': 'Nenhuma série no banco. Clique em Atualizar.',
     'drawer.episodes': { one: '{count} episódio', other: '{count} episódios' },
     'drawer.lastOn': 'último em {date}',
+    'drawer.upToDate': 'em dia',
+    'drawer.unwatched': { one: '{count} não visto', other: '{count} não vistos' },
     'drawer.favorite': 'Favoritar {title}',
     'drawer.unfavorite': 'Desfavoritar {title}',
 
@@ -189,6 +196,8 @@ const CATALOG = {
     'card.special': 'especial',
     'card.favorite': 'Favoritar esta série',
     'card.unfavorite': 'Remover dos favoritos',
+    'card.markWatched': 'Marcar como visto (e todos os anteriores)',
+    'card.unmarkWatched': 'Desmarcar como visto (e todos os seguintes)',
     'card.openSeries': 'Abrir {title} no Crunchyroll',
     'card.openSeriesAria': 'Abrir a página da série {title}',
     'card.seasonNote':
@@ -233,6 +242,7 @@ const CATALOG = {
 
     'msg.loadFailed': 'Não foi possível carregar a semana: {message}',
     'msg.favoriteFailed': 'Não foi possível favoritar: {message}',
+    'msg.watchedFailed': 'Não foi possível marcar como visto: {message}',
     'msg.seriesFailed': 'Não foi possível listar as séries: {message}',
     'msg.collectDone': 'Pronto: {inserted} novos, {updated} já conhecidos',
     'msg.collectDubs': ', {count} dublagens descartadas',
