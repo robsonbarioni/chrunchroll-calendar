@@ -153,8 +153,8 @@ fingerprint do stack TLS. O `fetch` nativo do Node (undici) leva um desafio
 tráfego sai por `child_process` + curl.
 
 **Autenticação.** Usa o token anônimo do player web (`grant_type=client_id`),
-sem conta nem credenciais. Conteúdo premium aparece no calendário marcado,
-mas assistir continua exigindo login no site.
+sem conta nem credenciais. O calendário lista tudo, inclusive o que é premium
+(a flag fica em `is_premium_only`); assistir continua exigindo login no site.
 
 **Fusos.** As datas da API vêm em UTC. O agrupamento por dia usa o fuso de
 `TZ_DISPLAY` (padrão `America/Sao_Paulo`), então um episódio das 01:30 UTC cai
