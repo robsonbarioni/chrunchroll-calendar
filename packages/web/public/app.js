@@ -61,6 +61,71 @@ function banner(message, kind = '', ms = 4000) {
   if (message && ms) bannerTimer = setTimeout(() => { el.banner.hidden = true; }, ms);
 }
 
+// ---------- prévia do episódio ----------
+
+/**
+ * O card mostra a capa da série, que é fixa e se repete toda semana — é o que
+ * deixa a série reconhecível de relance no calendário. O quadro daquele
+ * episódio, que muda sempre, fica nesta prévia que aparece no hover.
+ */
+const preview = (() => {
+  const box = document.createElement('div');
+  box.className = 'preview';
+  box.hidden = true;
+  const img = document.createElement('img');
+  img.alt = '';
+  const cap = document.createElement('div');
+  cap.className = 'cap';
+  box.append(img, cap);
+  document.body.append(box);
+
+  let timer = null;
+  let anchor = null;
+
+  function place() {
+    if (!anchor || box.hidden) return;
+    const c = anchor.getBoundingClientRect();
+    const w = box.offsetWidth || 300;
+    const h = box.offsetHeight || 200;
+    const gap = 10;
+
+    let left = c.right + gap;
+    if (left + w > innerWidth - 8) left = c.left - w - gap;     // não cabe à direita
+    if (left < 8) left = Math.max(8, Math.min(c.left, innerWidth - w - 8));
+
+    let top = c.top;
+    if (top + h > innerHeight - 8) top = innerHeight - h - 8;
+
+    box.style.left = `${Math.round(left)}px`;
+    box.style.top = `${Math.round(Math.max(8, top))}px`;
+  }
+
+  // A imagem chega depois; reposiciona quando a altura real é conhecida.
+  img.addEventListener('load', place);
+
+  function show(card, r) {
+    clearTimeout(timer);
+    if (!r.thumbnail) return;
+    timer = setTimeout(() => {
+      anchor = card;
+      img.src = r.thumbnail;
+      cap.textContent = [r.episodeLabel, r.title].filter(Boolean).join(' · ');
+      box.hidden = false;
+      place();
+    }, 260);   // evita piscar ao varrer o mouse pela coluna
+  }
+
+  function hide() {
+    clearTimeout(timer);
+    box.hidden = true;
+    anchor = null;
+  }
+
+  addEventListener('scroll', hide, true);
+  addEventListener('resize', hide);
+  return { show, hide };
+})();
+
 // ---------- calendário ----------
 
 function releaseCard(r) {
@@ -69,37 +134,54 @@ function releaseCard(r) {
   a.href = r.url;
   a.target = '_blank';
   a.rel = 'noopener';
-  a.title = `${r.seriesTitle} — ${r.episodeLabel}` + (r.title ? `: ${r.title}` : '') +
-            (r.durationMin ? ` (${r.durationMin} min)` : '');
+  // Sem `title`: o balão nativo brigaria com a prévia do episódio.
+  a.setAttribute('aria-label',
+    `${r.seriesTitle} — ${r.episodeLabel}` + (r.title ? `: ${r.title}` : '') +
+    (r.durationMin ? ` (${r.durationMin} min)` : ''));
+  a.addEventListener('mouseenter', () => preview.show(a, r));
+  a.addEventListener('mouseleave', () => preview.hide());
+  a.addEventListener('click', () => preview.hide());
+
+  // --- arte, com horário e episódio sobrepostos ---
+  const shot = document.createElement('span');
+  shot.className = 'shot';
 
   const img = document.createElement('img');
   img.className = 'thumb';
   img.loading = 'lazy';
+  img.decoding = 'async';
   img.alt = '';
-  if (r.thumbnail) img.src = r.thumbnail;
-  a.append(img);
+  // Capa da série primeiro; o quadro do episódio só se a capa faltar.
+  const art = r.seriesPoster || r.thumbnail;
+  if (art) img.src = art;
+  shot.append(img);
 
-  const info = document.createElement('div');
-  info.className = 'info';
+  // Sem selo de "premium": praticamente todo simulcast é premium, então o selo
+  // não distinguiria nada e só cobriria a arte. O dado segue no banco e na API.
 
-  const line = document.createElement('div');
+  const stamp = document.createElement('span');
+  stamp.className = 'stamp';
   const time = document.createElement('span');
   time.className = 'time';
   time.textContent = r.time ?? '--:--';
-  line.append(time);
   const ep = document.createElement('span');
   ep.className = 'ep';
   ep.textContent = r.episodeLabel;
-  line.append(ep);
+  stamp.append(time, ep);
   if (r.kind === 'special') {
     const b = document.createElement('span');
     b.className = 'badge-special';
     b.textContent = 'especial';
-    line.append(b);
+    stamp.append(b);
   }
-  info.append(line);
+  shot.append(stamp);
+  a.append(shot);
 
-  const st = document.createElement('span');
+  // --- textos ---
+  const info = document.createElement('div');
+  info.className = 'info';
+
+  const st = document.createElement('div');
   st.className = 'st';
   st.textContent = r.seriesTitle;
   info.append(st);
@@ -112,18 +194,40 @@ function releaseCard(r) {
   }
   a.append(info);
 
+  // --- ações ---
+  const tools = document.createElement('span');
+  tools.className = 'tools';
+
   const star = document.createElement('button');
-  star.className = 'star' + (r.isFavorite ? ' on' : '');
+  star.className = 'tool star' + (r.isFavorite ? ' on' : '');
   star.type = 'button';
   star.textContent = r.isFavorite ? '★' : '☆';
   star.title = r.isFavorite ? 'Remover dos favoritos' : 'Favoritar esta série';
+  star.setAttribute('aria-label', star.title);
   star.addEventListener('click', (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
     toggleFavorite(r.seriesId, !r.isFavorite);
   });
-  a.append(star);
+  tools.append(star);
 
+  if (r.seriesUrl) {
+    const series = document.createElement('a');
+    series.className = 'tool series';
+    series.href = r.seriesUrl;
+    series.target = '_blank';
+    series.rel = 'noopener';
+    series.title = `Abrir a página de ${r.seriesTitle} no Crunchyroll` +
+      (r.seasonTitle ? `\n(o site sempre abre na 1ª temporada; este episódio é de "${r.seasonTitle}")` : '');
+    series.setAttribute('aria-label', `Abrir a página da série ${r.seriesTitle}`);
+    // Ícone de grade/catálogo.
+    series.innerHTML =
+      '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2h5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5Zm8 0h5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5Zm-8 7h5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5Zm8 0h5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 .5-.5Z"/></svg>';
+    series.addEventListener('click', (ev) => ev.stopPropagation());
+    tools.append(series);
+  }
+
+  a.append(tools);
   return a;
 }
 

@@ -217,48 +217,83 @@ main { padding: 16px 20px 40px; }
 /* ---------- card de lançamento ---------- */
 
 .rel {
-  display: grid;
-  grid-template-columns: 54px 1fr;
-  gap: 9px;
-  padding: 7px;
-  border-radius: 8px;
+  display: block;
+  padding: 0 0 9px;
+  border-radius: 9px;
   text-decoration: none;
   color: inherit;
   position: relative;
+  overflow: hidden;
   transition: background .12s;
 }
 .rel:hover { background: var(--bg-elev-2); }
 
+/* A arte ocupa a largura toda do card: é o que identifica a série de relance. */
+.rel .shot { position: relative; display: block; }
+
 .rel .thumb {
-  width: 54px; height: 31px;
-  border-radius: 4px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 7px;
   object-fit: cover;
   background: #222835;
   display: block;
+  transition: filter .15s;
+}
+.rel:hover .thumb { filter: brightness(1.08); }
+
+/* Gradiente para o horário ficar legível sobre qualquer quadro. */
+.rel .shot::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 54%;
+  border-radius: 0 0 7px 7px;
+  background: linear-gradient(to top, #0b0d12f2, #0b0d1200);
+  pointer-events: none;
 }
 
-.rel .info { min-width: 0; }
+.rel .stamp {
+  position: absolute;
+  left: 7px; bottom: 6px;
+  display: flex; align-items: baseline; gap: 6px;
+  z-index: 1;
+}
+
+.rel .info { min-width: 0; padding: 7px 8px 0; }
 
 .rel .time {
-  font-size: 11px;
-  color: var(--accent);
-  font-weight: 650;
+  font-size: 12.5px;
+  color: #ffb06b;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px #000c;
 }
 
 .rel .ep {
-  font-size: 10px;
-  color: var(--text-faint);
-  margin-left: 5px;
-  font-weight: 600;
+  font-size: 10.5px;
+  color: #e8ecf3cc;
+  font-weight: 650;
+  text-shadow: 0 1px 3px #000c;
+}
+
+.rel .premium {
+  position: absolute;
+  top: 6px; left: 7px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #f4c52199;
+  color: #2b1d00;
+  backdrop-filter: blur(2px);
 }
 
 .rel .st {
-  display: block;
-  font-size: 12.5px;
-  font-weight: 550;
+  font-size: 13px;
+  font-weight: 600;
   line-height: 1.3;
-  margin-top: 1px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -278,23 +313,42 @@ main { padding: 16px 20px 40px; }
 .rel.fav { background: #ffc53d0d; box-shadow: inset 2px 0 0 var(--star); }
 .rel.fav:hover { background: #ffc53d1a; }
 
-.rel .star {
+/* Ações sobre a arte: favoritar e abrir a página da série. */
+.rel .tools {
   position: absolute;
   top: 5px; right: 5px;
-  width: 22px; height: 22px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+
+.rel .tool {
+  width: 24px; height: 24px;
   display: grid; place-items: center;
   border: none;
-  background: #0d0f14cc;
+  background: #0d0f14d9;
   border-radius: 50%;
-  color: var(--text-faint);
+  color: #c3ccdb;
   font-size: 13px;
+  line-height: 1;
   cursor: pointer;
+  text-decoration: none;
   opacity: 0;
-  transition: opacity .12s, color .12s, transform .12s;
+  backdrop-filter: blur(2px);
+  transition: opacity .12s, color .12s, transform .12s, background .12s;
 }
-.rel:hover .star, .rel .star.on { opacity: 1; }
-.rel .star.on { color: var(--star); }
-.rel .star:hover { transform: scale(1.18); color: var(--star); }
+.rel:hover .tool, .rel .tool.on { opacity: 1; }
+.rel .tool:hover { transform: scale(1.15); background: #000; }
+
+.rel .tool.star.on { color: var(--star); }
+.rel .tool.star:hover { color: var(--star); }
+.rel .tool.series:hover { color: var(--accent); }
+.rel .tool.series svg { width: 13px; height: 13px; fill: currentColor; }
+
+/* Sem hover (toque): mantém as ações sempre visíveis. */
+@media (hover: none) {
+  .rel .tool { opacity: 1; }
+}
 
 .badge-special {
   display: inline-block;
@@ -308,6 +362,43 @@ main { padding: 16px 20px 40px; }
   margin-left: 4px;
   font-weight: 700;
   vertical-align: 1px;
+}
+
+/* prévia do episódio, no hover do card */
+
+.preview {
+  position: fixed;
+  z-index: 40;
+  width: 300px;
+  background: var(--bg-elev-2);
+  border: 1px solid #3a4454;
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 12px 32px #000a;
+  pointer-events: none;   /* nunca rouba o hover do card */
+  animation: fadeIn .12s ease-out;
+}
+
+.preview img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+  background: #222835;
+}
+
+.preview .cap {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  padding: 6px 4px 2px;
+  line-height: 1.35;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .preview { animation: none; }
 }
 
 .meta {
@@ -399,5 +490,21 @@ main { padding: 16px 20px 40px; }
   .calendar { grid-template-columns: 1fr; gap: 8px; }
   .day { min-height: 0; }
   .day-head { padding: 8px 11px; }
-  .rel .star { opacity: 1; }
+
+  /* Em coluna única a arte cheia deixaria a lista altíssima: vira lado a lado. */
+  .rel {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 10px;
+    padding: 6px;
+    align-items: start;
+  }
+  .rel .shot { grid-row: span 2; }
+  /* As ações ficam fixas no canto do card: o texto recua para não passar por baixo. */
+  .rel .info { padding: 2px 60px 0 0; }
+  .rel .tool { opacity: 1; }
+}
+
+@media (max-width: 420px) {
+  .rel { grid-template-columns: 118px 1fr; }
 }

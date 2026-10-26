@@ -1,6 +1,36 @@
-import { CrunchyrollClient, Store, normalizeBatch, fromCmsEpisode, dates, config } from '@anime-week/core';
+import {
+  CrunchyrollClient, Store, normalizeBatch, fromCmsEpisode, seriesArtwork, dates, config,
+} from '@anime-week/core';
 
 const PAGE_SIZE = 100;
+
+/**
+ * Busca a capa oficial das séries que ainda não têm uma.
+ *
+ * O item de episódio só carrega o quadro daquele episódio, que muda toda
+ * semana — ruim para achar a série de relance no calendário. A capa da série
+ * é fixa, então vale uma requisição por série, uma única vez.
+ */
+export async function enrichArtwork({ store, client, limit = 400, concurrency = 4 } = {}) {
+  const pending = store.seriesMissingArtwork(limit);
+  if (pending.length === 0) return { fetched: 0, failed: 0 };
+
+  let cursor = 0, fetched = 0, failed = 0;
+  const worker = async () => {
+    while (cursor < pending.length) {
+      const id = pending[cursor++];
+      try {
+        const series = await client.series(id);
+        if (series) { store.setSeriesArtwork(id, seriesArtwork(series)); fetched++; }
+        else failed++;
+      } catch {
+        failed++; // tenta de novo na próxima coleta
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: concurrency }, worker));
+  return { fetched, failed };
+}
 
 /**
  * Coleta os lançamentos recentes a partir do feed de "recém-adicionados".
@@ -52,6 +82,10 @@ export async function collect({
           `(${inWindow} na janela) · +${res.inserted} novos, ~${res.updated} atualizados` +
           (page === 0 ? ` · catálogo: ${total}` : ''));
     }
+
+    const art = await enrichArtwork({ store, client });
+    if (art.fetched) log(`  capas de série buscadas: ${art.fetched}`);
+    totals.artwork = art.fetched;
 
     store.setMeta('last_collected_at', new Date().toISOString());
     totals.elapsedMs = Date.now() - startedAt;

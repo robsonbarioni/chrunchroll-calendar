@@ -108,11 +108,23 @@ Para coletar sem manter a interface aberta, `npm run watch` usa a mesma grade.
 
 - **‹ › Hoje** ou **← →** navegam entre as semanas.
 - **☆** em qualquer card favorita a série.
+- **▦** abre a página da série no Crunchyroll (o card em si abre o episódio).
 - **★ Só favoritos** filtra o calendário para as séries que você acompanha.
 - **Gerenciar séries** abre a lista completa, com busca.
 - **Atualizar** dispara uma coleta sem sair da página.
 - **Preencher histórico dos favoritos** baixa todas as temporadas das séries
   favoritadas — é assim que semanas antigas ganham dados.
+
+#### Capa fixa, prévia no hover
+
+O card mostra a **capa da série**, não um quadro do episódio. A capa se repete
+toda semana, então bate o olho e você acha a série que procura; o quadro do
+episódio mudaria a cada semana e atrapalharia esse reconhecimento. O quadro
+continua guardado e aparece numa prévia flutuante ao passar o mouse, junto do
+número do episódio e do título.
+
+As duas artes são buscadas uma vez por série (`poster_wide` 16:9 para o card,
+`poster_tall` 2:3 guardada para uso futuro) e ficam no banco.
 
 ## Estrutura
 
@@ -155,6 +167,20 @@ para trás. Para ir além, rode `backfill`: ele percorre série por série e já
 trouxe episódios de 2013 nos testes. Rodando `watch` continuamente, o histórico
 se acumula sozinho.
 
+**O que o banco guarda.** Cada lançamento carrega o suficiente para ser
+reaberto anos depois sem nova consulta à API: `url` (página do episódio),
+`series_url` (página da série), `thumbnail`, `season_id`, `season_title`,
+`description`, duração e horário de estreia. As capas da série ficam em
+`series.poster_wide` / `poster_tall`. Colunas novas entram por `ALTER TABLE`
+na abertura do banco, então bancos antigos migram sozinhos.
+
+**Temporada na URL da série.** Não dá. Testei no navegador: `?season=<id>` é
+ignorado, e trocar de temporada pelo próprio site muda o conteúdo sem alterar
+a URL — a seleção é só estado do cliente. Por isso o botão **▦** abre a série
+na temporada que o Crunchyroll escolher (normalmente a 1ª). O `season_id` do
+episódio fica guardado, então, se algum dia a URL passar a aceitá-lo, é uma
+linha de mudança.
+
 **Endpoints usados.**
 
 | Endpoint | Uso |
@@ -162,6 +188,7 @@ se acumula sozinho.
 | `POST /auth/v1/token` | token anônimo |
 | `/content/v2/discover/browse?type=episode` | feed de lançamentos |
 | `/content/v2/discover/seasonal_tags` | temporadas (`fall-2026`…) |
+| `/content/v2/cms/series/{id}` | capas oficiais da série |
 | `/content/v2/cms/series/{id}/seasons` | backfill |
 | `/content/v2/cms/seasons/{id}/episodes` | backfill |
 

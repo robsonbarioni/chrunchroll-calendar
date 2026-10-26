@@ -78,20 +78,30 @@ export function toRelease(item, { locale = config.locale, seenAt = new Date().to
     ? `T${m.season_number ?? 1} E${m.episode ?? epNum}`
     : (m.episode ? `${m.episode}` : 'Especial');
 
+  const lang = locale.toLowerCase();
+  const seriesSlug = m.series_slug_title ?? null;
+
   return {
     id: item.id,
     series_id: m.series_id,
     series_title: m.series_title ?? item.title ?? '(sem título)',
-    series_slug: m.series_slug_title ?? null,
+    series_slug: seriesSlug,
+    // Guardado junto para o banco responder sozinho, sem precisar de join.
+    series_url: seriesSlug
+      ? `https://www.crunchyroll.com/${lang}/series/${m.series_id}/${seriesSlug}`
+      : `https://www.crunchyroll.com/${lang}/series/${m.series_id}`,
+    season_id: m.season_id ?? null,
     season_number: m.season_number ?? null,
+    season_title: m.season_title ?? null,
     episode_number: epNum,
     episode_label: label,
     title: item.title ?? m.episode ?? '',
+    description: item.description ?? m.description ?? null,
     premiere_at: premiere,
     audio_locale: m.audio_locale ?? null,
     duration_ms: m.duration_ms ?? null,
-    thumbnail: pickImage(item.images?.thumbnail, 320),
-    url: `https://www.crunchyroll.com/${locale.toLowerCase()}/watch/${item.id}/${item.slug_title ?? ''}`,
+    thumbnail: pickImage(item.images?.thumbnail, 640),
+    url: `https://www.crunchyroll.com/${lang}/watch/${item.id}/${item.slug_title ?? ''}`,
     is_premium_only: m.is_premium_only ? 1 : 0,
     kind: classify(m),
     dedupe_key: dedupeKey(item),
@@ -114,15 +124,26 @@ export function fromCmsEpisode(episode) {
   };
 }
 
-/** Dados de série extraídos de um item de episódio. */
+/**
+ * Dados de série extraídos de um item de episódio.
+ *
+ * Sem capa: o item de episódio só traz o quadro daquele episódio, que muda
+ * toda semana. A capa oficial vem de `seriesArtwork()`, pelo endpoint da série.
+ */
 export function toSeries(item) {
   const m = item.episode_metadata;
   return {
     id: m.series_id,
     title: m.series_title ?? '(sem título)',
     slug_title: m.series_slug_title ?? null,
-    poster_tall: null,
-    poster_wide: pickImage(item.images?.thumbnail, 600),
+  };
+}
+
+/** Capas oficiais a partir do objeto de série do catálogo. */
+export function seriesArtwork(series) {
+  return {
+    poster_wide: pickImage(series?.images?.poster_wide, 640),
+    poster_tall: pickImage(series?.images?.poster_tall, 480),
   };
 }
 
