@@ -1,0 +1,8 @@
+{
+  "name": "@anime-week/collector",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "anime-week": "src/cli.js" },
+  "dependencies": { "@anime-week/core": "1.0.0" }
+}

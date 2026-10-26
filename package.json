@@ -1,0 +1,17 @@
+{
+  "name": "anime-week",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Calendário semanal de lançamentos de anime do Crunchyroll (coletor + interface)",
+  "type": "module",
+  "engines": { "node": ">=22.5.0" },
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "collect": "node packages/collector/src/cli.js collect",
+    "backfill": "node packages/collector/src/cli.js backfill",
+    "watch": "node packages/collector/src/cli.js watch",
+    "stats": "node packages/collector/src/cli.js stats",
+    "web": "node packages/web/src/server.js",
+    "start": "node packages/collector/src/cli.js collect && node packages/web/src/server.js"
+  }
+}
