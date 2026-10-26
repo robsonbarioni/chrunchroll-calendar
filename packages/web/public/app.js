@@ -16,7 +16,7 @@ const el = {
   openFavs: $('#openFavs'), closeFavs: $('#closeFavs'),
   drawer: $('#drawer'), scrim: $('#scrim'),
   seriesList: $('#seriesList'), seriesSearch: $('#seriesSearch'), backfillBtn: $('#backfillBtn'),
-  lang: $('#lang'),
+  langs: $('#langs'),
 };
 
 const DAYS = 7;
@@ -103,34 +103,42 @@ const preview = (() => {
   document.body.append(box);
 
   let timer = null;
-  let anchor = null;
+  const pointer = { x: 0, y: 0 };
+  const OFFSET = 18;   // afastamento do cursor, para não tapar o que ele aponta
 
+  /** Ancora a prévia no cursor, virando de lado ou para cima quando falta espaço. */
   function place() {
-    if (!anchor || box.hidden) return;
-    const c = anchor.getBoundingClientRect();
+    if (box.hidden) return;
     const w = box.offsetWidth || 300;
     const h = box.offsetHeight || 200;
-    const gap = 10;
 
-    let left = c.right + gap;
-    if (left + w > innerWidth - 8) left = c.left - w - gap;     // não cabe à direita
-    if (left < 8) left = Math.max(8, Math.min(c.left, innerWidth - w - 8));
+    let left = pointer.x + OFFSET;
+    if (left + w > innerWidth - 8) left = pointer.x - w - OFFSET;  // não cabe à direita
+    left = Math.max(8, Math.min(left, innerWidth - w - 8));
 
-    let top = c.top;
-    if (top + h > innerHeight - 8) top = innerHeight - h - 8;
+    let top = pointer.y + OFFSET;
+    if (top + h > innerHeight - 8) top = pointer.y - h - OFFSET;   // não cabe abaixo
+    top = Math.max(8, Math.min(top, innerHeight - h - 8));
 
     box.style.left = `${Math.round(left)}px`;
-    box.style.top = `${Math.round(Math.max(8, top))}px`;
+    box.style.top = `${Math.round(top)}px`;
   }
 
   // A imagem chega depois; reposiciona quando a altura real é conhecida.
   img.addEventListener('load', place);
 
-  function show(card, r) {
+  /** Atualiza a posição do cursor; chamado no mousemove de cada card. */
+  function track(ev) {
+    pointer.x = ev.clientX;
+    pointer.y = ev.clientY;
+    place();
+  }
+
+  function show(r, ev) {
     clearTimeout(timer);
     if (!r.thumbnail) return;
+    if (ev) { pointer.x = ev.clientX; pointer.y = ev.clientY; }
     timer = setTimeout(() => {
-      anchor = card;
       img.src = r.thumbnail;
       cap.textContent = r.isProjection
         ? t('forecast.preview', {
@@ -147,12 +155,11 @@ const preview = (() => {
   function hide() {
     clearTimeout(timer);
     box.hidden = true;
-    anchor = null;
   }
 
   addEventListener('scroll', hide, true);
   addEventListener('resize', hide);
-  return { show, hide };
+  return { show, hide, track };
 })();
 
 // ---------- calendário ----------
@@ -173,7 +180,8 @@ function releaseCard(r) {
         ? t('card.ariaWithTitle', { series: r.seriesTitle, episode: epLabel(r), title: r.title })
         : t('card.aria', { series: r.seriesTitle, episode: epLabel(r) }))
       + (r.durationMin ? t('card.ariaDuration', { minutes: r.durationMin }) : ''));
-  a.addEventListener('mouseenter', () => preview.show(a, r));
+  a.addEventListener('mouseenter', (ev) => preview.show(r, ev));
+  a.addEventListener('mousemove', preview.track);
   a.addEventListener('mouseleave', () => preview.hide());
   a.addEventListener('click', () => preview.hide());
 
@@ -555,17 +563,29 @@ el.showProj.addEventListener('change', () => {
   loadWeek();
 });
 
-// Idioma: detectado pelo navegador na primeira visita, trocável aqui.
-for (const [code, label] of Object.entries(LANGS)) {
-  const opt = document.createElement('option');
-  opt.value = code;
-  opt.textContent = label;
-  el.lang.append(opt);
+// Idioma: detectado pelo navegador na primeira visita, trocável nas bandeiras.
+const flagButtons = new Map();
+for (const [code, { label, flag }] of Object.entries(LANGS)) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'flag';
+  btn.innerHTML = flag;
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.addEventListener('click', () => setLang(code));
+  el.langs.append(btn);
+  flagButtons.set(code, btn);
 }
-el.lang.value = getLang();
-el.lang.addEventListener('change', () => setLang(el.lang.value));
+
+function markCurrentFlag() {
+  for (const [code, btn] of flagButtons) {
+    btn.setAttribute('aria-pressed', String(code === getLang()));
+  }
+}
+markCurrentFlag();
 
 onLangChange(() => {
+  markCurrentFlag();
   applyStatic();
   if (state.week) renderWeek(state.week);   // datas e textos dos cards
   renderFreshness();

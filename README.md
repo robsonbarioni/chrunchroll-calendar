@@ -53,12 +53,13 @@ interface; da segunda vez em diante, `npm run web` já basta.
 | **★ Só favoritos** | Esconde tudo que você não acompanha |
 | **Previsões** | Liga/desliga a projeção dos dias que ainda não chegaram |
 | **Gerenciar séries** | Lista completa, com busca, para favoritar em lote |
-| **Idioma** | Alterna entre inglês e português |
+| **Bandeiras** | Alternam entre inglês e português |
 | **Atualizar** | Força uma busca agora, sem esperar o ciclo automático |
 
-Passando o mouse sobre um card aparece o **quadro daquele episódio**. O card em
-si mostra sempre a capa da série, que não muda de uma semana para outra — é o
-que deixa cada série reconhecível de relance na grade.
+Passando o mouse sobre um card aparece o **quadro daquele episódio**, numa
+prévia que acompanha o cursor e vira de lado ao chegar perto da borda. O card
+em si mostra sempre a capa da série, que não muda de uma semana para outra — é
+o que deixa cada série reconhecível de relance na grade.
 
 ### Fica atualizado sozinho
 
@@ -103,8 +104,8 @@ fato, e preenchê-lo seria inventar um lançamento que não houve.
 
 A interface está em **inglês** e **português**, e escolhe sozinha a partir do
 idioma do navegador — `pt-BR`, `pt-PT` ou qualquer variante de português abre em
-português; o resto abre em inglês. O seletor no canto superior direito troca a
-qualquer momento, e a escolha fica guardada.
+português; o resto abre em inglês. As bandeiras no canto superior direito
+trocam a qualquer momento, e a escolha fica guardada.
 
 A tradução vai além do texto: o idioma define também o formato das datas e
 horas. Em inglês a semana aparece como `10/26 – 11/01` com horários em 12 h
@@ -214,6 +215,15 @@ A separação tem duas camadas:
 
 Resultado: o banco só contém áudios originais (`ja-JP`, `zh-CN`, `ko-KR`…), sem
 nenhum locale de dublagem.
+
+### As cores
+
+A paleta sai do CSS do próprio Crunchyroll, escolhida pelo que mais aparece
+por lá: `#8c8c8c` (463 ocorrências), `#151515` (188), `#000` (172), `#ff640a`
+(141) e `#272727` (130). Vale notar que o laranja da marca hoje é **#ff640a** —
+o `#f47521`, mais conhecido, é o antigo. O ciano `#00eee0` e o dourado
+`#fab818` completam o conjunto, usados aqui no destaque do dia de hoje e nos
+favoritos. As barras de rolagem seguem a mesma paleta.
 
 ### Por que curl e não o `fetch` do Node
 

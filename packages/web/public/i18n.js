@@ -1,8 +1,38 @@
 // Tradução da interface. Sem dependências: catálogos literais + Intl do navegador.
 
+/*
+ * Bandeiras em SVG, não emoji: o Windows não traz glifo de bandeira e
+ * renderizaria "US" e "BR" como letras soltas.
+ */
+const FLAG_US = `
+<svg viewBox="0 0 22 15" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect width="22" height="15" fill="#fff"/>
+  <g fill="#b22234">
+    <rect width="22" height="1.15" y="0"/><rect width="22" height="1.15" y="2.31"/>
+    <rect width="22" height="1.15" y="4.62"/><rect width="22" height="1.15" y="6.92"/>
+    <rect width="22" height="1.15" y="9.23"/><rect width="22" height="1.15" y="11.54"/>
+    <rect width="22" height="1.15" y="13.85"/>
+  </g>
+  <rect width="9.2" height="8.08" fill="#3c3b6e"/>
+  <g fill="#fff">
+    <circle cx="1.8" cy="1.5" r=".52"/><circle cx="4.6" cy="1.5" r=".52"/><circle cx="7.4" cy="1.5" r=".52"/>
+    <circle cx="3.2" cy="3.1" r=".52"/><circle cx="6.0" cy="3.1" r=".52"/>
+    <circle cx="1.8" cy="4.7" r=".52"/><circle cx="4.6" cy="4.7" r=".52"/><circle cx="7.4" cy="4.7" r=".52"/>
+    <circle cx="3.2" cy="6.3" r=".52"/><circle cx="6.0" cy="6.3" r=".52"/>
+  </g>
+</svg>`;
+
+const FLAG_BR = `
+<svg viewBox="0 0 22 15" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect width="22" height="15" fill="#009b3a"/>
+  <path d="M11 1.7 20.1 7.5 11 13.3 1.9 7.5Z" fill="#fedf00"/>
+  <circle cx="11" cy="7.5" r="3.3" fill="#002776"/>
+  <path d="M7.9 6.4a6.2 6.2 0 0 1 6.3 2.3" stroke="#fff" stroke-width=".85" fill="none"/>
+</svg>`;
+
 export const LANGS = {
-  'en-US': 'English',
-  'pt-BR': 'Português',
+  'en-US': { label: 'English', flag: FLAG_US },
+  'pt-BR': { label: 'Português', flag: FLAG_BR },
 };
 
 export const DEFAULT_LANG = 'en-US';
