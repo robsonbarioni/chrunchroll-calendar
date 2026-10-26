@@ -4,14 +4,13 @@ Calendário semanal dos lançamentos de anime do **Crunchyroll**, de segunda a
 domingo, rodando na sua máquina. Mostra os episódios que saíram, prevê os dias
 que ainda não chegaram e deixa você favoritar as séries que acompanha.
 
-```
-┌─ seg 26 ─┬─ ter 27 ─┬─ qua 28 ─┬─ qui 29 ─┬─ sex 30 ─┬─ sáb 31 ─┬─ dom 01 ─┐
-│   hoje   │         previsto a partir da semana passada          │
-│ 09:30 E4 │ 10:30 ·· │ 10:00 ·· │ 09:30 ·· │ 00:00 ·· │ 06:30 ·· │ 06:00 ·· │
-│ 10:00 E5 │ 11:30 ·· │ 10:00 ·· │ 13:05 ·· │ 12:00 ·· │ 10:00 ·· │ 06:00 ·· │
-│ 11:30 E4 │    …     │    …     │          │    …     │    …     │    …     │
-└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
-```
+![O calendário da semana: a coluna de hoje em cores, com os episódios já
+lançados, e os dias seguintes em cinza com o selo PREVISTO](docs/screenshot.png)
+
+<p align="center"><sub>
+Segunda-feira com o que já saiu; o resto da semana em cinza, previsto a partir
+da semana anterior.
+</sub></p>
 
 **Por que existe:** a lista de "recém-adicionados" do Crunchyroll não é uma
 lista de episódios novos. Quando uma série ganha dublagem nova, os episódios
