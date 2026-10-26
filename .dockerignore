@@ -1,0 +1,28 @@
+# Node
+**/node_modules/
+
+# Banco local (persistido em volume, não no build)
+data/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.db-journal
+
+# Segredos / config local
+.env
+**/.env
+
+# Git / IDE / OS / docs
+.git/
+.claude/
+.vscode/
+.idea/
+docs/
+*.md
+*.log
+Thumbs.db
+.DS_Store
+
+# Docker
+infra/
+.dockerignore

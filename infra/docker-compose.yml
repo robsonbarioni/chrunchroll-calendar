@@ -1,0 +1,29 @@
+# Nome de projeto explícito: sem ele o compose usa o nome da pasta (`infra`),
+# o mesmo de outros projetos com essa estrutura — e o `--remove-orphans` do
+# `npm run deploy` derrubaria os containers deles.
+name: anime-week
+
+services:
+  anime-week:
+    build:
+      # Contexto = raiz do repo (um nível acima desta pasta), Dockerfile dentro de infra/
+      context: ..
+      dockerfile: infra/Dockerfile
+    image: anime-week:latest
+    container_name: anime-week
+    restart: unless-stopped
+    init: true
+    ports:
+      # host:container — host 5180 evita conflito com `npm run web` (5173);
+      # o app dentro do container continua escutando em 5173.
+      # Aponte o Cloudflare Tunnel para http://localhost:5180.
+      - "5180:5173"
+    # Opcional: sobrescreve fuso, locale, intervalo de coleta etc. (ver infra/.env.example)
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - DB_PATH=/data/anime-week.db
+    volumes:
+      # Bind-mount: o anime-week.db fica em ./infra/data no host
+      - ./data:/data

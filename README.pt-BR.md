@@ -186,6 +186,34 @@ Seus dados ficam todos em `data/anime-week.db`, um arquivo SQLite comum. Para
 começar do zero, é só apagá-lo. Para levar os favoritos para outra máquina,
 copie o arquivo.
 
+### Rodando no Docker
+
+Para deixar o calendário sempre no ar — e acessível de fora por um túnel — há
+uma imagem pronta em `infra/`. Só é preciso o
+[Docker Desktop](https://www.docker.com/products/docker-desktop/):
+
+```bash
+npm run deploy
+```
+
+Isso gera a imagem e (re)cria o container `anime-week`, que volta sozinho junto
+com o Docker. Abra **http://localhost:5180**. Rode o mesmo comando depois de cada
+alteração para publicar a versão nova.
+
+- **Porta:** o app escuta na 5173 dentro do container e é publicado na **5180**
+  do host, para não brigar com o `npm run web`.
+- **Dados:** o banco fica em `infra/data/anime-week.db`, fora da imagem. Para
+  levar os favoritos que você já tem, copie `data/anime-week.db` para lá antes do
+  primeiro `deploy`.
+- **Configuração:** opcional, em `infra/.env` (modelo em `infra/.env.example`).
+- **URL externa:** aponte um hostname público do
+  [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+  para `http://localhost:5180`.
+
+> **O app não tem login.** Quem tiver a URL pode favoritar, marcar episódios
+> como vistos e disparar coletas. Antes de publicar, coloque uma regra de acesso
+> na frente (o Cloudflare Access, por exemplo).
+
 ---
 
 ## Problemas comuns
@@ -302,6 +330,7 @@ packages/
 └── web/          API HTTP + interface
     ├── src/      servidor (node:http, sem framework)
     └── public/   calendário (HTML/CSS/JS puros) + i18n.js
+infra/            Dockerfile, docker-compose.yml e o data/ do container
 ```
 
 O banco guarda, para cada lançamento, o suficiente para reabri-lo anos depois

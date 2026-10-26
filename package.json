@@ -12,6 +12,7 @@
     "watch": "node packages/collector/src/cli.js watch",
     "stats": "node packages/collector/src/cli.js stats",
     "web": "node packages/web/src/server.js",
-    "start": "node packages/collector/src/cli.js collect && node packages/web/src/server.js"
+    "start": "node packages/collector/src/cli.js collect && node packages/web/src/server.js",
+    "deploy": "docker compose -f infra/docker-compose.yml up -d --build --remove-orphans"
   }
 }

@@ -187,6 +187,34 @@ Optional. Copy `.env.example` to `.env` and adjust what you want:
 All your data lives in `data/anime-week.db`, an ordinary SQLite file. To start
 over, just delete it. To carry your favorites to another machine, copy it.
 
+### Running in Docker
+
+To keep the calendar always on — and reachable from outside through a tunnel —
+there is a ready image in `infra/`. You only need
+[Docker Desktop](https://www.docker.com/products/docker-desktop/):
+
+```bash
+npm run deploy
+```
+
+That builds the image and (re)creates the `anime-week` container, which restarts
+on its own with Docker. Open **http://localhost:5180**. Run the same command
+after every change to ship the new version.
+
+- **Port:** the app listens on 5173 inside the container and is published on
+  **5180** on the host, so it does not clash with `npm run web`.
+- **Data:** the database lives in `infra/data/anime-week.db`, outside the image.
+  To bring over the favorites you already have, copy `data/anime-week.db` there
+  before the first `deploy`.
+- **Configuration:** optional, in `infra/.env` (template in
+  `infra/.env.example`).
+- **External URL:** point a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+  public hostname at `http://localhost:5180`.
+
+> **The app has no login.** Whoever has the URL can favorite, mark episodes as
+> watched and trigger collections. Before publishing it, put an access rule in
+> front of it (Cloudflare Access, for example).
+
 ---
 
 ## Common problems
@@ -302,6 +330,7 @@ packages/
 └── web/          HTTP API + interface
     ├── src/      server (node:http, no framework)
     └── public/   calendar (plain HTML/CSS/JS) + i18n.js
+infra/            Dockerfile, docker-compose.yml and the container's data/
 ```
 
 For each release the database keeps enough to reopen it years later without
