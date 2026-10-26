@@ -1,230 +1,275 @@
 # Anime Week
 
-Calendário semanal dos lançamentos de anime do Crunchyroll: um coletor que
-grava o histórico e uma interface que mostra a semana de segunda a domingo,
-com navegação para semanas anteriores, previsão dos dias que ainda não
-chegaram e marcação de favoritos.
+Calendário semanal dos lançamentos de anime do **Crunchyroll**, de segunda a
+domingo, rodando na sua máquina. Mostra os episódios que saíram, prevê os dias
+que ainda não chegaram e deixa você favoritar as séries que acompanha.
 
-```
-┌─ seg 26 ─┬─ ter 27 ─┬─ qua 28 ─┬─ qui 29 ─┬─ sex 30 ─┬─ sáb 31 ─┬─ dom 01 ─┐
-│  hoje    │        previsto a partir da semana passada             │
-│ 09:30 E4 │ 10:30 ·· │ 10:00 ·· │ 09:30 ·· │ 00:00 ·· │ 06:30 ·· │ 06:00 ·· │
-│ 10:00 E5 │ 11:30 ·· │ 10:00 ·· │ 13:05 ·· │ 12:00 ·· │ 10:00 ·· │ 06:00 ·· │
-│ 11:30 E4 │    …     │    …     │          │    …     │    …     │    …     │
-└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
-```
+![O calendário da semana, com os lançamentos de hoje em cores e os dias
+seguintes em cinza, marcados como previsão](docs/screenshot.png)
 
-## O problema que isto resolve
+<p align="center"><sub>
+Segunda-feira com os episódios já lançados; o resto da semana em cinza,
+previsto a partir da semana anterior.
+</sub></p>
 
-O feed de "recém-adicionados" do Crunchyroll **não** é uma lista de episódios
-novos. Cada dublagem é publicada como um item próprio, com id e data próprios —
-então, quando uma série ganha dublagem nova, os 24 episódios antigos reaparecem
-no topo do feed como se fossem lançamentos de hoje.
+**Por que existe:** a lista de "recém-adicionados" do Crunchyroll não é uma
+lista de episódios novos. Quando uma série ganha dublagem nova, os episódios
+antigos reaparecem no topo como se tivessem acabado de sair — na prática,
+[~86% daquele feed é esse ruído](#como-os-episódios-novos-são-separados-das-dublagens).
+Este projeto separa o que é estreia de verdade.
 
-Medido na prática: **~86% do feed é ruído de dublagem.** Uma página de 100 itens
-chegou a trazer 24 episódios da mesma série, todos carimbados no mesmo horário.
+---
 
-A solução tem duas camadas:
+## Começando
 
-1. **No servidor** — a requisição usa `is_dubbed=false`, que faz a API devolver
-   só as versões de áudio original.
-2. **No cliente** — cada item é conferido contra o próprio `versions[]`
-   (`original: true`), e episódios são colapsados pela identidade
-   `série|temporada|episódio`. Entre duplicatas, vence a estreia **mais antiga**:
-   uma re-publicação nunca empurra um episódio velho para a semana atual.
+Você precisa de **Node.js 22.5 ou mais novo** ([baixar](https://nodejs.org)) e
+do **curl**, que já vem instalado no Windows 10+, macOS e Linux.
 
-Resultado: o banco só contém áudios originais (`ja-JP`, `zh-CN`, `ko-KR`…),
-sem nenhum locale de dublagem.
-
-## Instalação
-
-Precisa de **Node.js 22.5+** (usa o `node:sqlite` nativo) e de **curl**, que já
-vem no Windows 10+, macOS e Linux. Não há dependências de terceiros.
+Não precisa de conta no Crunchyroll, nem de chave de API, nem de banco de dados
+instalado. Também não há dependências de terceiros para baixar.
 
 ```bash
-npm install          # apenas liga os workspaces entre si
-cp .env.example .env # opcional: ajusta fuso, porta, caminho do banco
-```
-
-## Uso
-
-```bash
-npm run collect      # busca os lançamentos recentes
-npm run web          # abre a interface em http://localhost:5173
-```
-
-Ou os dois de uma vez:
-
-```bash
+git clone https://github.com/robsonbarioni/chrunchroll-calendar.git
+cd chrunchroll-calendar
+npm install
 npm start
 ```
 
-### Comandos do coletor
+Abra **http://localhost:5173**. O `npm start` faz a primeira coleta e sobe a
+interface; da segunda vez em diante, `npm run web` já basta.
 
-| Comando | O que faz |
+> **Windows:** rode pelo PowerShell, Prompt de Comando ou Git Bash — tanto faz.
+> Os comandos são os mesmos.
+
+---
+
+## Usando
+
+| | |
 | --- | --- |
-| `npm run collect` | Coleta os lançamentos recentes (`--pages N`, padrão 3) |
-| `npm run watch` | Coleta em loop na grade alinhada (`--interval`, `--offset`) |
-| `npm run backfill` | Puxa o histórico completo das séries favoritadas |
-| `npm run stats` | Mostra o estado do banco e um gráfico dos 7 dias |
+| **‹ › Hoje** | Anda de semana em semana. Também funciona com **←** e **→** |
+| **☆** | Favorita a série (o card inteiro abre o episódio) |
+| **▦** | Abre a página da série no Crunchyroll |
+| **★ Só favoritos** | Esconde tudo que você não acompanha |
+| **Previsões** | Liga/desliga a projeção dos dias que ainda não chegaram |
+| **Gerenciar séries** | Lista completa, com busca, para favoritar em lote |
+| **Atualizar** | Força uma busca agora, sem esperar o ciclo automático |
+
+Passando o mouse sobre um card aparece o **quadro daquele episódio**. O card em
+si mostra sempre a capa da série, que não muda de uma semana para outra — é o
+que deixa cada série reconhecível de relance na grade.
+
+### Fica atualizado sozinho
+
+Enquanto a interface estiver aberta, o servidor verifica o Crunchyroll **a cada
+15 minutos**, sempre 2 minutos depois da marca: `:02`, `:17`, `:32`, `:47`. Esse
+atraso é de propósito — um episódio marcado para as 09:00 leva alguns segundos
+até entrar no catálogo, e consultar em cima da hora traria a lista sem ele.
+
+Quando a semana na tela inclui hoje, a barra de cima mostra o frescor dos dados:
+
+```
+● verificado há 3 minutos
+```
+
+Verde quer dizer em dia, o ponto pulsa durante a verificação e fica laranja se
+passaram duas janelas sem sucesso. A tela se atualiza sozinha quando chega
+coisa nova — sem recarregar a página.
+
+### As previsões
+
+Os dias da semana corrente que ainda não chegaram repetem o que saiu sete dias
+antes, com um visual bem diferente: **arte em cinza, contorno tracejado e o selo
+`PREVISTO`** no lugar do número do episódio. Nada ali é um episódio confirmado.
+
+A previsão erra em dois casos, e não há como evitá-los:
+
+- **Fim de temporada.** Uma série de 12 episódios acaba e outra ocupa o horário.
+  O Crunchyroll não expõe isso: o campo `number_of_episodes` conta os episódios
+  *já publicados* e `is_complete` vem `false` até para séries encerradas.
+- **Datas especiais.** Feriados e imprevistos no Japão suspendem a programação.
+
+Por isso a previsão nunca arrisca um número de episódio, e cada card mostra em
+quantas das últimas 4 semanas aquela série realmente saiu naquele dia — *"saiu
+em 4 das últimas 4 semanas"* é um padrão firme, *"só na semana passada"* pede
+desconfiança. O erro também se desfaz sozinho: na semana seguinte a previsão já
+parte de uma semana sem aquele lançamento, e a série some da grade.
+
+Dias que **já passaram** nunca recebem previsão. Um dia vazio no passado é um
+fato, e preenchê-lo seria inventar um lançamento que não houve.
+
+### Vendo semanas antigas
+
+As setas voltam no tempo até onde houver dados. A coleta normal enxerga cerca de
+duas semanas para trás; para ir além, favorite as séries que te interessam e use
+**Preencher histórico dos favoritos** no painel lateral. Ele percorre temporada
+por temporada — em testes trouxe episódios de 2013.
+
+Rodando o coletor de forma contínua, o histórico se acumula sozinho.
+
+---
+
+## Comandos
 
 ```bash
+npm run web          # só a interface
+npm run collect      # busca os lançamentos recentes
+npm run watch        # fica coletando em segundo plano
+npm run backfill     # histórico completo das séries favoritadas
+npm run stats        # estado do banco e um gráfico dos últimos 7 dias
+```
+
+Alguns aceitam opções:
+
+```bash
+# coleta mais funda, para encher o histórico de uma vez
+node packages/collector/src/cli.js collect --pages 10
+
 # histórico completo de uma série específica
 node packages/collector/src/cli.js backfill --series GQWH0M19X
 
-# coleta mais profunda, para encher o histórico de uma vez
-node packages/collector/src/cli.js collect --pages 10
+# coletar a cada 30 min em vez de 15
+node packages/collector/src/cli.js watch --interval 30
 ```
 
-## A semana e as previsões
+### Configuração
 
-O calendário vai sempre de **segunda a domingo**, não é uma janela deslizante
-terminando hoje. Assim cada série cai sempre na mesma coluna, semana após
-semana, e dá para comparar de bate-pronto. A primeira abertura mostra a semana
-corrente, e as setas andam de sete em sete dias.
-
-Nos dias da semana corrente que ainda não chegaram, o calendário repete o que
-saiu sete dias antes, marcado como **previsão**: a arte fica em cinza, com
-contorno tracejado e o selo `PREVISTO` no lugar do número do episódio. O card
-leva à página da série, não a uma URL de episódio que ainda não existe.
-
-A previsão erra em dois casos conhecidos:
-
-- **Fim de temporada.** Uma série de 12 episódios some da grade e outra ocupa
-  o lugar. O Crunchyroll não expõe isso: `number_of_episodes` conta os
-  episódios já publicados, e `is_complete` vem `false` até para séries
-  encerradas — então não há como saber de antemão.
-- **Datas especiais.** Feriados e eventos no Japão suspendem a programação.
-
-Por isso a previsão nunca arrisca um número de episódio, e cada card mostra em
-quantas das últimas 4 semanas aquela série realmente saiu naquele dia —
-*"saiu em 4 das últimas 4 semanas"* é um padrão firme; *"só na semana passada"*
-pede desconfiança. O erro também se autocorrige: na semana seguinte a previsão
-já parte de uma semana sem aquele lançamento, e a série some sozinha.
-
-Dias que **já passaram** nunca recebem previsão, em nenhuma semana. Uma lacuna
-no passado é um fato — pode ter sido feriado ou fim de temporada — e preenchê-la
-seria inventar um lançamento que não houve.
-
-O botão **Previsões** desliga tudo isso e deixa só o que foi realmente lançado.
-
-## Coleta automática
-
-O servidor web verifica o Crunchyroll sozinho a cada 15 minutos, **2 minutos
-depois da grade** — às `:02`, `:17`, `:32` e `:47`. O atraso existe porque um
-episódio marcado para as 09:00 leva alguns segundos até aparecer no catálogo:
-consultar exatamente às 09:00 devolveria a lista sem ele.
-
-Enquanto a semana visível contém o dia de hoje, a barra superior mostra quando
-foi a última verificação:
-
-```
-● verificado há 3 minutos        ← passe o mouse para ver a próxima
-```
-
-O ponto fica verde quando está em dia, pulsa durante a verificação, e vira
-laranja se passaram duas janelas sem sucesso. Em semanas passadas o indicador
-some, porque ali o dado não muda mais. A tela se atualiza sozinha quando uma
-coleta nova entra — sem recarregar a página.
-
-Ajuste pelo `.env`:
+Opcional. Copie `.env.example` para `.env` e ajuste o que quiser:
 
 | Variável | Padrão | O que faz |
 | --- | --- | --- |
+| `TZ_DISPLAY` | `America/Sao_Paulo` | Fuso usado para agrupar por dia |
+| `CR_LOCALE` | `pt-BR` | Idioma dos títulos e descrições |
+| `PORT` | `5173` | Porta da interface |
+| `DB_PATH` | `./data/anime-week.db` | Onde fica o banco |
 | `COLLECT_INTERVAL_MIN` | `15` | Intervalo entre verificações |
-| `COLLECT_OFFSET_SEC` | `120` | Atraso sobre a grade |
+| `COLLECT_OFFSET_SEC` | `120` | Atraso sobre a marca do relógio |
 | `COLLECT_PAGES` | `2` | Páginas buscadas por verificação |
-| `AUTO_COLLECT` | `1` | `0` desliga a coleta do servidor |
+| `AUTO_COLLECT` | `1` | `0` desliga a coleta automática |
 
-Para coletar sem manter a interface aberta, `npm run watch` usa a mesma grade.
+Seus dados ficam todos em `data/anime-week.db`, um arquivo SQLite comum. Para
+começar do zero, é só apagá-lo. Para levar os favoritos para outra máquina,
+copie o arquivo.
 
-### Na interface
+---
 
-- **‹ › Hoje** ou **← →** andam de semana em semana (segunda a domingo).
-- **☆** em qualquer card favorita a série.
-- **▦** abre a página da série no Crunchyroll (o card em si abre o episódio).
-- **★ Só favoritos** filtra o calendário para as séries que você acompanha.
-- **Gerenciar séries** abre a lista completa, com busca.
-- **Atualizar** dispara uma coleta sem sair da página.
-- **Preencher histórico dos favoritos** baixa todas as temporadas das séries
-  favoritadas — é assim que semanas antigas ganham dados.
+## Problemas comuns
 
-#### Capa fixa, prévia no hover
+**O calendário está vazio.**
+Rode `npm run collect` ou clique em **Atualizar**. Na primeira execução o banco
+está vazio mesmo.
 
-O card mostra a **capa da série**, não um quadro do episódio. A capa se repete
-toda semana, então bate o olho e você acha a série que procura; o quadro do
-episódio mudaria a cada semana e atrapalharia esse reconhecimento. O quadro
-continua guardado e aparece numa prévia flutuante ao passar o mouse, junto do
-número do episódio e do título.
+**`EADDRINUSE: address already in use :::5173`.**
+Já existe algo na porta. Use outra: `PORT=5174 npm run web` (no PowerShell,
+`$env:PORT=5174; npm run web`).
 
-As duas artes são buscadas uma vez por série (`poster_wide` 16:9 para o card,
-`poster_tall` 2:3 guardada para uso futuro) e ficam no banco.
+**`node:sqlite` não existe / erro de módulo.**
+Sua versão do Node é anterior à 22.5. Confira com `node -v`.
+
+**A coleta falha com erro de HTTP.**
+Confira se o `curl` está disponível (`curl --version`). O Crunchyroll fica
+atrás do Cloudflare e, se a sua região estiver bloqueada ou a rede exigir
+proxy, a coleta não passa.
+
+**Os horários não batem com os do site.**
+Ajuste `TZ_DISPLAY` no `.env` para o seu fuso.
+
+---
+
+## Como funciona
+
+### Como os episódios novos são separados das dublagens
+
+Cada dublagem é publicada pelo Crunchyroll como um item próprio, com id e data
+próprios. Quando uma série ganha dublagem nova, os episódios antigos entram no
+feed de recém-adicionados carimbados com a data de hoje. Medindo na prática:
+**~86% do feed é esse ruído** — uma página de 100 itens chegou a trazer 24
+episódios da mesma série, todos no mesmo horário.
+
+A separação tem duas camadas:
+
+1. A requisição usa `is_dubbed=false`, e a API devolve só as versões de áudio
+   original.
+2. Localmente, cada item ainda é conferido contra o próprio `versions[]`
+   (`original: true`), e episódios são colapsados pela identidade
+   `série|temporada|episódio`. Entre duplicatas vence a estreia **mais antiga**,
+   então uma re-publicação nunca empurra um episódio velho para a semana atual.
+
+Resultado: o banco só contém áudios originais (`ja-JP`, `zh-CN`, `ko-KR`…), sem
+nenhum locale de dublagem.
+
+### Por que curl e não o `fetch` do Node
+
+O Crunchyroll fica atrás do Cloudflare, que faz fingerprint do stack TLS. O
+`fetch` nativo do Node (undici) leva um desafio 403 mesmo mandando todos os
+headers de um navegador; o curl passa. Por isso todo o tráfego sai por
+`child_process` + curl.
+
+### Autenticação
+
+Usa o token anônimo do player web (`grant_type=client_id`), sem conta nem
+credenciais suas. O calendário lista tudo, inclusive o que é premium — assistir
+é que continua exigindo login no site.
+
+### Fusos
+
+As datas da API vêm em UTC. O agrupamento por dia usa o fuso de `TZ_DISPLAY`,
+então um episódio das 01:30 UTC cai no dia anterior, como você veria no site. A
+consulta ao banco abre ±2 dias de folga em UTC e o recorte final é feito pela
+chave de dia local.
+
+### Endpoints usados
+
+| Endpoint | Para quê |
+| --- | --- |
+| `POST /auth/v1/token` | Token anônimo |
+| `/content/v2/discover/browse?type=episode` | Feed de lançamentos |
+| `/content/v2/discover/seasonal_tags` | Temporadas (`fall-2026`…) |
+| `/content/v2/cms/series/{id}` | Capas oficiais da série |
+| `/content/v2/cms/series/{id}/seasons` | Backfill |
+| `/content/v2/cms/seasons/{id}/episodes` | Backfill |
+
+A página `/simulcastcalendar`, que seria a fonte mais direta, foi descontinuada
+— hoje redireciona para `/simulcasts`.
+
+### Sobre a temporada na URL da série
+
+Não é possível abrir a série já numa temporada específica. Verificado no
+navegador: `?season=<id>` é ignorado, e trocar de temporada pelo próprio site
+muda o conteúdo sem alterar a URL. O `season_id` do episódio fica guardado no
+banco caso isso mude algum dia.
+
+---
 
 ## Estrutura
 
+Monorepo com npm workspaces, sem dependências de terceiros e sem etapa de build.
+
 ```
 packages/
-├── core/         @anime-week/core      — biblioteca compartilhada
+├── core/         biblioteca compartilhada
 │   ├── http.js         transporte via curl
-│   ├── crunchyroll.js  cliente da API (token anônimo, browse, CMS)
+│   ├── crunchyroll.js  cliente da API
 │   ├── normalize.js    filtro de dublagem e deduplicação
-│   ├── dates.js        janelas semanais e conversão de fuso
+│   ├── dates.js        semanas, fusos e dias locais
 │   ├── schedule.js     grade de coleta (intervalo + offset)
-│   └── db.js           SQLite (node:sqlite)
-├── collector/    @anime-week/collector — CLI de coleta e backfill
-└── web/          @anime-week/web       — API HTTP + interface
+│   └── db.js           SQLite, via node:sqlite nativo
+├── collector/    CLI de coleta e backfill
+└── web/          API HTTP + interface
     ├── src/      servidor (node:http, sem framework)
-    └── public/   calendário (HTML/CSS/JS puros, sem build)
+    └── public/   calendário (HTML/CSS/JS puros)
 ```
 
-Os dados ficam em `data/anime-week.db` (fora do versionamento).
+O banco guarda, para cada lançamento, o suficiente para reabri-lo anos depois
+sem nova consulta à API: URL do episódio, URL da série, thumbnail, temporada,
+descrição, duração e horário de estreia. Colunas novas entram por `ALTER TABLE`
+na abertura, então bancos antigos migram sozinhos.
 
-## Notas técnicas
+---
 
-**Por que curl e não `fetch`.** O Crunchyroll fica atrás do Cloudflare, que faz
-fingerprint do stack TLS. O `fetch` nativo do Node (undici) leva um desafio
-403 mesmo com todos os headers de navegador; o curl passa. Por isso todo o
-tráfego sai por `child_process` + curl.
+## Aviso
 
-**Autenticação.** Usa o token anônimo do player web (`grant_type=client_id`),
-sem conta nem credenciais. O calendário lista tudo, inclusive o que é premium
-(a flag fica em `is_premium_only`); assistir continua exigindo login no site.
-
-**Fusos.** As datas da API vêm em UTC. O agrupamento por dia usa o fuso de
-`TZ_DISPLAY` (padrão `America/Sao_Paulo`), então um episódio das 01:30 UTC cai
-no dia anterior — como você veria no site. A consulta ao banco abre ±2 dias de
-folga em UTC e o recorte final é feito pela chave de dia local.
-
-**Alcance do histórico.** O feed recente cobre cerca de 50 episódios originais
-por semana antes de virar catálogo antigo, então `collect` enxerga ~2 semanas
-para trás. Para ir além, rode `backfill`: ele percorre série por série e já
-trouxe episódios de 2013 nos testes. Rodando `watch` continuamente, o histórico
-se acumula sozinho.
-
-**O que o banco guarda.** Cada lançamento carrega o suficiente para ser
-reaberto anos depois sem nova consulta à API: `url` (página do episódio),
-`series_url` (página da série), `thumbnail`, `season_id`, `season_title`,
-`description`, duração e horário de estreia. As capas da série ficam em
-`series.poster_wide` / `poster_tall`. Colunas novas entram por `ALTER TABLE`
-na abertura do banco, então bancos antigos migram sozinhos.
-
-**Temporada na URL da série.** Não dá. Testei no navegador: `?season=<id>` é
-ignorado, e trocar de temporada pelo próprio site muda o conteúdo sem alterar
-a URL — a seleção é só estado do cliente. Por isso o botão **▦** abre a série
-na temporada que o Crunchyroll escolher (normalmente a 1ª). O `season_id` do
-episódio fica guardado, então, se algum dia a URL passar a aceitá-lo, é uma
-linha de mudança.
-
-**Endpoints usados.**
-
-| Endpoint | Uso |
-| --- | --- |
-| `POST /auth/v1/token` | token anônimo |
-| `/content/v2/discover/browse?type=episode` | feed de lançamentos |
-| `/content/v2/discover/seasonal_tags` | temporadas (`fall-2026`…) |
-| `/content/v2/cms/series/{id}` | capas oficiais da série |
-| `/content/v2/cms/series/{id}/seasons` | backfill |
-| `/content/v2/cms/seasons/{id}/episodes` | backfill |
-
-A página `/simulcastcalendar`, que seria a fonte mais direta, foi descontinuada
-— hoje ela redireciona para `/simulcasts`.
+Projeto pessoal, sem vínculo com a Crunchyroll LLC. Usa endpoints públicos do
+site para montar um calendário de uso próprio, no mesmo ritmo de quem navega
+pelo site. Não baixa, não redistribui e não dá acesso a nenhum vídeo —
+assistir continua sendo no Crunchyroll, com a sua conta.
