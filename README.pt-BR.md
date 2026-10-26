@@ -50,6 +50,7 @@ interface; da segunda vez em diante, `npm run web` já basta.
 | | |
 | --- | --- |
 | **‹ › Hoje** | Anda de semana em semana. Também funciona com **←** e **→** |
+| **✓** | Marca o episódio como visto, junto com todos os anteriores |
 | **☆** | Favorita a série (o card inteiro abre o episódio) |
 | **▦** | Abre a página da série no Crunchyroll |
 | **★ Só favoritos** | Esconde tudo que você não acompanha |
@@ -62,6 +63,20 @@ Passando o mouse sobre um card aparece o **quadro daquele episódio**, numa
 prévia que acompanha o cursor e vira de lado ao chegar perto da borda. O card
 em si mostra sempre a capa da série, que não muda de uma semana para outra — é
 o que deixa cada série reconhecível de relance na grade.
+
+### Acompanhando o que você já viu
+
+Marcar um episódio com **✓** marca também **todos os episódios anteriores**
+daquela série como vistos, inclusive de temporadas passadas — não é preciso
+marcar um por um. Os cards vistos ficam apagados, para o que ainda falta assistir
+se destacar. Clicar de novo no **✓** de um episódio visto desmarca ele e todos
+os seguintes.
+
+Em **Gerenciar séries**, cada série que você começou a marcar mostra se você
+está **em dia** ou quantos episódios estão **não vistos**.
+
+A ordem segue a data de estreia. Dois episódios da mesma série que estrearam no
+mesmo instante são marcados juntos.
 
 ### Fica atualizado sozinho
 

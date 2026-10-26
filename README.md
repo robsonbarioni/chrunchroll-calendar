@@ -51,6 +51,7 @@ up the interface; from then on, `npm run web` is enough.
 | | |
 | --- | --- |
 | **‹ › Today** | Moves week by week. **←** and **→** work too |
+| **✓** | Marks the episode as watched, along with every earlier one |
 | **☆** | Favorites the series (the card itself opens the episode) |
 | **▦** | Opens the series page on Crunchyroll |
 | **★ Favorites only** | Hides everything you do not follow |
@@ -63,6 +64,19 @@ Hovering a card brings up **that episode's still frame**, in a preview that
 follows the cursor and flips sides near the screen edge. The card itself always
 shows the series artwork, which does not change from one week to the next —
 that is what makes each series recognisable at a glance in the grid.
+
+### Keeping track of what you have watched
+
+Marking an episode with **✓** also marks **every earlier episode** of that
+series as watched, previous seasons included — there is no need to tick them one
+by one. Watched cards are dimmed, so what is still left to see stands out.
+Clicking **✓** again on a watched episode unmarks it and every episode after it.
+
+Under **Manage series**, each series you have started marking shows whether you
+are **up to date** or how many episodes are **unwatched**.
+
+Order follows the premiere date. Two episodes of the same series that premiered
+at the exact same moment are marked together.
 
 ### It keeps itself current
 
