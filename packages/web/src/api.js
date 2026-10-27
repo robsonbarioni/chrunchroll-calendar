@@ -101,17 +101,19 @@ export function buildWeek(store, { startKey, days, favoritesOnly, kinds, project
 
   const todayK = dates.todayKey();
   const currentWeek = dates.currentWeekStart();
-  // Previsão só na semana corrente e só adiante. Um dia que já passou sem
-  // episódio é um fato — pode ter sido feriado no Japão ou fim de temporada —
-  // e preencher essa lacuna depois seria inventar um lançamento que não houve.
+  // Previsão só na semana corrente e só do instante atual em diante — inclusive
+  // nos horários que ainda faltam hoje. Um horário que já passou sem episódio
+  // é um fato — pode ter sido feriado no Japão ou fim de temporada — e
+  // preencher essa lacuna depois seria inventar um lançamento que não houve.
   const canProject = project && win.startKey === currentWeek;
+  const nowIso = new Date().toISOString();
   let projected = 0;
 
   const dayList = win.keys.map((key) => {
     const real = (buckets.get(key) ?? []).slice();
     const isFuture = key > todayK;
 
-    if (isFuture && canProject) {
+    if (key >= todayK && canProject) {
       const seen = new Set(real.map((r) => r.seriesId));
       // Semanas anteriores deste mesmo dia da semana, da mais recente à mais antiga.
       const history = Array.from({ length: LOOKBACK_WEEKS }, (_, i) =>
@@ -120,11 +122,14 @@ export function buildWeek(store, { startKey, days, favoritesOnly, kinds, project
       for (const prev of buckets.get(dates.addDays(key, -7)) ?? []) {
         // Se a série já tem episódio confirmado nesse dia, a previsão sobra.
         if (seen.has(prev.seriesId)) continue;
-        seen.add(prev.seriesId);
-        real.push(toProjection(prev, {
+        const proj = toProjection(prev, {
           weeksSeen: history.filter((w) => w.has(prev.seriesId)).length,
           weeksChecked: LOOKBACK_WEEKS,
-        }));
+        });
+        // Hoje, só o que ainda está por vir.
+        if (proj.premiereAt <= nowIso) continue;
+        seen.add(prev.seriesId);
+        real.push(proj);
         projected++;
       }
     }
